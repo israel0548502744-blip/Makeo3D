@@ -22,8 +22,8 @@ import kotlinx.coroutines.withContext
  */
 object Creations {
     enum class Kind(val label: String, val needsImage: Boolean) {
-        LITHOPHANE("ליתופן", true), RELIEF("תבליט", true), QR("קוד QR", false),
-        NAME("מחזיק מפתחות", false), COOKIE("חותכן עוגיות", true), STAMP("חותמת", false),
+        LITHOPHANE(tr("ליתופן"), true), RELIEF(tr("תבליט"), true), QR(tr("קוד QR"), false),
+        NAME(tr("מחזיק מפתחות"), false), COOKIE(tr("חותכן עוגיות"), true), STAMP(tr("חותמת"), false),
     }
 
     class Options(
@@ -54,7 +54,7 @@ object Creations {
 
     fun create(kind: Kind, image: Bitmap?, text: String, o: Options) {
         if (busy != null) return
-        busy = "יוצר ${kind.label}…"; error = null
+        busy = tr("יוצר {0}…", kind.label); error = null
         val app = AppState.app
         AppState.scope.launch {
             try {
@@ -114,7 +114,7 @@ object Creations {
 
     private fun relief(src: Bitmap, o: Options): Pair<Mesh, Bitmap> {
         val app = AppState.app
-        if (!Extras.ready(app, Extras.DEPTH)) throw IllegalStateException("תבליט צריך את \"מפת עומק\" מהשיפורים בהגדרות")
+        if (!Extras.ready(app, Extras.DEPTH)) throw IllegalStateException(tr("תבליט צריך את \"מפת עומק\" מהשיפורים בהגדרות"))
         val (px, w, h) = sample(src)
         val raw = Enhance.depth(app, src, w, h)
         val mask = if (o.flatBackground) {
@@ -141,7 +141,7 @@ object Creations {
     }
 
     private fun qr(text: String, caption: String): Pair<Mesh, Bitmap> {
-        if (text.isBlank()) throw IllegalStateException("צריך להכניס קישור או טקסט")
+        if (text.isBlank()) throw IllegalStateException(tr("צריך להכניס קישור או טקסט"))
         val (mod, n) = qrMatrix(text.trim())
         val mesh = if (caption.isBlank()) Heightfield.qr(mod, n, moduleMm = SIZE_MM / n)
         else {
@@ -188,7 +188,7 @@ object Creations {
     }
 
     private fun nameTag(text: String, o: Options): Pair<Mesh, Bitmap> {
-        if (text.isBlank()) throw IllegalStateException("צריך להכניס שם או טקסט")
+        if (text.isBlank()) throw IllegalStateException(tr("צריך להכניס שם או טקסט"))
         // Font size ~1.4x the height of capital letters.
         val mask = textMask(text.trim(), (o.sizeMm * 1.4f / TEXT_CELL_MM).toInt())
         val mesh = Templates.nameTag(mask, TEXT_CELL_MM, o.tagStyle, o.keyring)
@@ -210,16 +210,16 @@ object Creations {
     private fun cookie(src: Bitmap, o: Options): Pair<Mesh, Bitmap> {
         val samples = 320
         val m = shape(src, samples, removeBackground = o.flatBackground)
-        if (m.count() < 50) throw IllegalStateException("לא נמצאה צורה בתמונה")
+        if (m.count() < 50) throw IllegalStateException(tr("לא נמצאה צורה בתמונה"))
         val b = m.bounds()!!
         val cell = o.sizeMm / maxOf(b[2] - b[0] + 1, b[3] - b[1] + 1)
         return Templates.cookieCutter(m, cell) to preview(m)
     }
 
     private fun stamp(src: Bitmap?, text: String, o: Options): Pair<Mesh, Bitmap> {
-        val m = if (o.stampImage) shape(src ?: throw IllegalStateException("צריך לבחור תמונה"), 300, removeBackground = false)
-        else textMask(text.trim().ifEmpty { throw IllegalStateException("צריך להכניס טקסט") }, 120)
-        val b = m.bounds() ?: throw IllegalStateException("לא נמצא ציור")
+        val m = if (o.stampImage) shape(src ?: throw IllegalStateException(tr("צריך לבחור תמונה")), 300, removeBackground = false)
+        else textMask(text.trim().ifEmpty { throw IllegalStateException(tr("צריך להכניס טקסט")) }, 120)
+        val b = m.bounds() ?: throw IllegalStateException(tr("לא נמצא ציור"))
         val cell = o.sizeMm / maxOf(b[2] - b[0] + 1, b[3] - b[1] + 1)
         return Templates.stamp(m, cell) to preview(m)
     }

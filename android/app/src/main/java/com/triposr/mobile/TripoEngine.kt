@@ -19,14 +19,14 @@ enum class Backend(val label: String, val short: String) {
 
 /** Pipeline steps, with their rough share of the total time (for the progress ring). */
 enum class Stage(val label: String, val weight: Float) {
-    LOAD("טעינת המודל", 0.10f),
-    SEGMENT("הסרת רקע", 0.05f),
-    ENCODE("ניתוח התמונה", 0.20f),
-    DENOISE("בניית הצורה (TripoSG)", 0.70f),
-    FIELD("בניית שדה תלת־ממד", 0.35f),
-    SURFACE("יצירת רשת פוליגונים", 0.08f),
-    COLOR("צביעה והחלקה", 0.07f),
-    TEXTURE("צביעה חדה (טקסטורה)", 0.15f),
+    LOAD(tr("טעינת המודל"), 0.10f),
+    SEGMENT(tr("הסרת רקע"), 0.05f),
+    ENCODE(tr("ניתוח התמונה"), 0.20f),
+    DENOISE(tr("בניית הצורה (TripoSG)"), 0.70f),
+    FIELD(tr("בניית שדה תלת־ממד"), 0.35f),
+    SURFACE(tr("יצירת רשת פוליגונים"), 0.08f),
+    COLOR(tr("צביעה והחלקה"), 0.07f),
+    TEXTURE(tr("צביעה חדה (טקסטורה)"), 0.15f),
 }
 
 /**
@@ -75,7 +75,7 @@ class TripoEngine(private val context: Context) : AutoCloseable {
             onAttempt(b)
             val t0 = System.nanoTime()
             try {
-                onStatus("טוען את המודל ל-${b.label}")
+                onStatus(tr("טוען את המודל ל-{0}", b.label))
                 if (b == Backend.NPU) {
                     // Compiling the 1.6 GB encoder for the NPU on the phone takes too long and too much
                     // memory (the system kills the app), so the NPU only uses the pack compiled in CI.
@@ -97,7 +97,7 @@ class TripoEngine(private val context: Context) : AutoCloseable {
                 if (e is OutOfMemoryError) System.gc()
             }
         }
-        throw IllegalStateException("לא הצלחתי לטעון את המודל על אף מעבד: ${last?.message}", last)
+        throw IllegalStateException(tr("לא הצלחתי לטעון את המודל על אף מעבד: {0}", last?.message), last)
     }
 
     @Synchronized
@@ -206,7 +206,7 @@ class TripoEngine(private val context: Context) : AutoCloseable {
         // still gets a closed (watertight) surface instead of a hole.
         closeBoundary(field, res)
         var mesh = timed(Stage.SURFACE) { SurfaceNets.extract(field, res, RADIUS) }
-        if (mesh.vertexCount == 0) throw IllegalStateException("לא נמצא אובייקט בתמונה. נסה תמונה עם אובייקט ברור במרכז.")
+        if (mesh.vertexCount == 0) throw IllegalStateException(tr("לא נמצא אובייקט בתמונה. נסה תמונה עם אובייקט ברור במרכז."))
         CrashLog.log("Surface: ${mesh.vertexCount} vertices, ${mesh.triangleCount} triangles")
 
         mesh = timed(Stage.COLOR) {
@@ -256,12 +256,12 @@ class TripoEngine(private val context: Context) : AutoCloseable {
     }
 
     private fun createSession(model: File, b: Backend, cacheName: String): OrtSession {
-        if (!model.exists()) throw IllegalStateException("המודל לא הורד עדיין (${model.name})")
+        if (!model.exists()) throw IllegalStateException(tr("המודל לא הורד עדיין ({0})", model.name))
         if (b == Backend.CPU) return cpuSession(model)
         val opts = OrtSession.SessionOptions()
         opts.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
         opts.addQnn(qnnOptions(b))
-        CrashLog.log("Creating ${b.short} session for ${model.name} ($cacheName)")
+        CrashLog.log("Creating ${b.short} session for ${model.name} (${cacheName})")
         return env.createSession(model.absolutePath, opts)
     }
 

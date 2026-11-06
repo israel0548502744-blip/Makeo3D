@@ -38,7 +38,7 @@ class ProcessingService : Service() {
             val nm = ctx.getSystemService(NotificationManager::class.java)
             ensureChannels(ctx)
             if (job != null && (job.done || job.error != null)) {
-                val text = if (job.done) "המודל מוכן! לחץ לצפייה" else "שגיאה: ${job.error}"
+                val text = if (job.done) tr("המודל מוכן! לחץ לצפייה") else tr("שגיאה: {0}", job.error)
                 nm.notify(ID_DONE, Notification.Builder(ctx, CHANNEL_DONE)
                     .setSmallIcon(R.drawable.ic_launcher_foreground)
                     .setContentTitle("Makeo 3D")
@@ -59,10 +59,10 @@ class ProcessingService : Service() {
 
         private fun ensureChannels(ctx: Context) {
             val nm = ctx.getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(NotificationChannel(CHANNEL_PROGRESS, "יצירת מודל", NotificationManager.IMPORTANCE_LOW))
+            nm.createNotificationChannel(NotificationChannel(CHANNEL_PROGRESS, tr("יצירת מודל"), NotificationManager.IMPORTANCE_LOW))
             nm.deleteNotificationChannel("done")
             // High importance: pops up on top of the screen with sound and vibration.
-            nm.createNotificationChannel(NotificationChannel(CHANNEL_DONE, "מודל מוכן", NotificationManager.IMPORTANCE_HIGH)
+            nm.createNotificationChannel(NotificationChannel(CHANNEL_DONE, tr("מודל מוכן"), NotificationManager.IMPORTANCE_HIGH)
                 .apply { enableVibration(true) })
         }
     }
@@ -98,7 +98,7 @@ class ProcessingService : Service() {
         val pct = ((job?.overall ?: 0f) * 100).toInt()
         return Notification.Builder(this, CHANNEL_PROGRESS)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("יוצר מודל תלת־ממד… $pct%")
+            .setContentTitle(tr("יוצר מודל תלת־ממד… {0}%", pct))
             .setContentText(job?.status ?: "")
             .setProgress(100, pct, false)
             .setOngoing(true)

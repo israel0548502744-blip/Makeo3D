@@ -164,12 +164,12 @@ object AppState {
             prefs().edit().remove("active_backend").commit()
             if (!CrashLog.previousSessionCrashed) return@let
             val crashed = Backend.valueOf(name)
-            prefs().edit().putBoolean("crashed_$name", true).commit()
-            CrashLog.log("Previous run died while using $name")
+            prefs().edit().putBoolean("crashed_${name}", true).commit()
+            CrashLog.log("Previous run died while using ${name}")
             if (crashed != Backend.CPU) {
                 if (Settings.backendChoice(app) == crashed) Settings.setBackendChoice(app, null)
-                notice = "בהפעלה הקודמת האפליקציה נסגרה בזמן עבודה על ${crashed.label}. " +
-                    "מעכשיו המצב האוטומטי ידלג עליו. אפשר לאפס בהגדרות, ודוח הקריסה זמין להעתקה."
+                notice = tr("בהפעלה הקודמת האפליקציה נסגרה בזמן עבודה על {0}. ", crashed.label) +
+                    tr("מעכשיו המצב האוטומטי ידלג עליו. אפשר לאפס בהגדרות, ודוח הקריסה זמין להעתקה.")
             }
         }
         scope.launch { reloadProjects() }
@@ -180,11 +180,11 @@ object AppState {
     fun clearCrashed(b: Backend) = prefs().edit().remove("crashed_${b.name}").apply()
 
     fun navigate(s: Screen) {
-        if (screen != s) { backStack.add(s); CrashLog.log("Screen: $s") }
+        if (screen != s) { backStack.add(s); CrashLog.log("Screen: ${s}") }
     }
 
     fun navigateRoot(s: Screen) {
-        CrashLog.log("Screen: $s")
+        CrashLog.log("Screen: ${s}")
         backStack.clear()
         backStack.add(Screen.Home)
         if (s != Screen.Home) backStack.add(s)
@@ -270,7 +270,7 @@ object AppState {
         }
         val framed = Preprocess.frameForeground(cut)
         val check = Preprocess.check(work, cut, removeBackground || points.isNotEmpty(), sourceInfo)
-        CrashLog.log("Preview in %.2fs: removeBg=$removeBackground taps=${points.size} extras=${Extras.describe(app)} issues=${check.issues} ".format((System.nanoTime() - t0) / 1e9) +
+        CrashLog.log("Preview in %.2fs: removeBg=${removeBackground} taps=${points.size} extras=${Extras.describe(app)} issues=${check.issues} ".format((System.nanoTime() - t0) / 1e9) +
             check.stats.entries.joinToString { "%s=%.3f".format(it.key, it.value) })
         return Preview(img, removeBackground, framed, check.issues, work, points, selection, cut)
     }
@@ -291,10 +291,10 @@ object AppState {
         cancelRequested = false
         val generator = Settings.generator(app)
         job = JobState(backend = if (generator == Generator.TRIPOSG) Backend.NPU else choice ?: Capabilities.best(app),
-            status = "מתחיל...", plan = generator.stages)
+            status = tr("מתחיל..."), plan = generator.stages)
         navigate(Screen.Processing)
         ProcessingService.start(app)
-        CrashLog.log("Job start: generator=$generator backend=${choice ?: "AUTO"} quality=$quality removeBg=$removeBackground smooth=$smooth " +
+        CrashLog.log("Job start: generator=${generator} backend=${choice ?: "AUTO"} quality=${quality} removeBg=${removeBackground} smooth=${smooth} " +
             "image=${image.width}x${image.height}")
 
         runningJob = scope.launch {
@@ -307,12 +307,12 @@ object AppState {
                     return@launch
                 }
                 stage(Stage.LOAD, 0f)
-                if (!ModelStore.isReady(app)) throw IllegalStateException("צריך להוריד את המודל קודם (מסך הבית)")
+                if (!ModelStore.isReady(app)) throw IllegalStateException(tr("צריך להוריד את המודל קודם (מסך הבית)"))
                 if (choice == null && !Capabilities.probed(app)) {
                     Capabilities.probe(app) { stage(Stage.LOAD, 0.2f, it) }
                 }
                 val chain = Capabilities.chain(app, choice)
-                CrashLog.log("Backend chain: $chain (${Capabilities.describe(app)})")
+                CrashLog.log("Backend chain: ${chain} (${Capabilities.describe(app)})")
                 val eng = engine()
                 eng.load(chain, onStatus = { stage(Stage.LOAD, 0.5f, it) }, onAttempt = { b ->
                     // Written synchronously: if the process dies inside native code we find it on next launch.
@@ -337,7 +337,7 @@ object AppState {
                 }
                 val smoothIterations = Settings.smoothStrength(app)
                 val density = Settings.densityThreshold(app)
-                CrashLog.log("Advanced: smooth=$smoothIterations density=$density")
+                CrashLog.log("Advanced: smooth=${smoothIterations} density=${density}")
                 val out = eng.reconstruct(Preprocess.toChw(frame), quality.resolution, smooth, textureSize,
                     smoothIterations, density,
                     progress = { s, p -> stage(s, p) },
@@ -377,7 +377,7 @@ object AppState {
             project = p
             input = null // the next "create" starts from a fresh image
             preview = null
-            job = job?.copy(done = true, stageProgress = 1f, status = "המודל מוכן!")
+            job = job?.copy(done = true, stageProgress = 1f, status = tr("המודל מוכן!"))
             if (screen == Screen.Processing) showResult()
         }
     }
@@ -399,7 +399,7 @@ object AppState {
         val timings = LinkedHashMap<String, Double>()
         timings[Stage.SEGMENT.name] = segSeconds
         for ((s, t) in out.timings) timings[s.name] = t
-        finish(out.mesh, pv.framed, "NPU", "TripoSG · $steps צעדים" + if (Settings.sgGuidanceInterval(app)) " · הכוונה חכמה" else "", timings, (System.nanoTime() - t0) / 1e9,
+        finish(out.mesh, pv.framed, "NPU", tr("TripoSG · {0} צעדים", steps) + if (Settings.sgGuidanceInterval(app)) tr(" · הכוונה חכמה") else "", timings, (System.nanoTime() - t0) / 1e9,
             image, Generator.TRIPOSG.name)
     }
 
@@ -409,7 +409,7 @@ object AppState {
         scope.launch {
             val bmp = withContext(Dispatchers.IO) { p.source(app) }
             withContext(Dispatchers.Main) {
-                if (bmp == null) { notice = "התמונה המקורית של המודל הזה לא נשמרה"; return@withContext }
+                if (bmp == null) { notice = tr("התמונה המקורית של המודל הזה לא נשמרה"); return@withContext }
                 if (job?.done == true) job = null
                 setImage(bmp)
                 navigate(Screen.Create)
@@ -451,7 +451,7 @@ object AppState {
     private fun projectsDir() = File(app.filesDir, "projects").apply { mkdirs() }
 
     fun saveProject(mesh: Mesh, thumb: Bitmap, backend: String, quality: String, seconds: Double,
-                    timings: Map<String, Double>, name: String = "מודל ${projects.size + 1}",
+                    timings: Map<String, Double>, name: String = tr("מודל {0}", projects.size + 1),
                     source: Bitmap? = null, kind: String = ""): Project {
         val id = System.currentTimeMillis().toString()
         val p = Project(id, name, System.currentTimeMillis(), backend, quality,
@@ -513,7 +513,7 @@ object AppState {
                 }
             } catch (e: Throwable) {
                 CrashLog.error("open project ${p.id}", e)
-                notice = "לא הצלחתי לפתוח את הפרויקט: ${e.message}"
+                notice = tr("לא הצלחתי לפתוח את הפרויקט: {0}", e.message)
             }
         }
     }

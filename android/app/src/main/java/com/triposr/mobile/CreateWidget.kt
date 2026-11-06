@@ -36,7 +36,7 @@ class CreateWidget : AppWidgetProvider() {
             }
             if (thumb != null) views.setImageViewBitmap(R.id.widget_thumb, thumb)
             views.setTextViewText(R.id.widget_subtitle,
-                if (dirs.isNullOrEmpty()) "תמונה ← מודל תלת־ממד" else "${dirs.size} מודלים שמורים")
+                if (dirs.isNullOrEmpty()) tr("תמונה ← מודל תלת־ממד") else tr("{0} מודלים שמורים", dirs.size))
             mgr.updateAppWidget(ids, views)
         }
     }

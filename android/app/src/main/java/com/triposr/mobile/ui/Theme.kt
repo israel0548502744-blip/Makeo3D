@@ -1,5 +1,6 @@
 package com.triposr.mobile.ui
 
+import com.triposr.mobile.tr
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -146,9 +147,9 @@ fun TripoTheme(animations: Boolean = true, content: @Composable () -> Unit) {
             )
         },
     ) {
-        // The whole UI is Hebrew, so lay it out right-to-left regardless of the phone language.
+        // Hebrew is laid out right-to-left and English left-to-right, whatever the phone language.
         CompositionLocalProvider(
-            LocalLayoutDirection provides LayoutDirection.Rtl,
+            LocalLayoutDirection provides if (com.triposr.mobile.I18n.english) LayoutDirection.Ltr else LayoutDirection.Rtl,
             LocalAnimations provides animations,
             content = content,
         )
@@ -223,7 +224,7 @@ fun TopBar(title: String, onBack: (() -> Unit)? = null, actions: @Composable Row
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        if (onBack != null) CircleIcon(Icons.AutoMirrored.Rounded.ArrowBack, "חזרה", onClick = onBack)
+        if (onBack != null) CircleIcon(Icons.AutoMirrored.Rounded.ArrowBack, tr("חזרה"), onClick = onBack)
         Text(title, color = C.Text, fontSize = 21.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1)
         actions()
     }

@@ -1,5 +1,6 @@
 package com.triposr.mobile.ui
 
+import com.triposr.mobile.tr
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -136,12 +137,12 @@ fun BottomNav(current: Screen) {
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            NavItem(Icons.Rounded.Home, "בית", current == Screen.Home) { AppState.navigateRoot(Screen.Home) }
-            NavItem(Icons.Rounded.GridView, "גלריה", current == Screen.Projects) { AppState.navigateRoot(Screen.Projects) }
+            NavItem(Icons.Rounded.Home, tr("בית"), current == Screen.Home) { AppState.navigateRoot(Screen.Home) }
+            NavItem(Icons.Rounded.GridView, tr("גלריה"), current == Screen.Projects) { AppState.navigateRoot(Screen.Projects) }
             Spacer(Modifier.width(72.dp))
-            NavItem(Icons.Rounded.Memory, "מודלים", current == Screen.Models) { AppState.navigateRoot(Screen.Models) }
+            NavItem(Icons.Rounded.Memory, tr("מודלים"), current == Screen.Models) { AppState.navigateRoot(Screen.Models) }
             val errors = remember(com.triposr.mobile.Health.tick.intValue) { com.triposr.mobile.Health.errorCount() }
-            NavItem(Icons.Rounded.Settings, "הגדרות", current == Screen.Settings, dot = errors > 0) { AppState.navigateRoot(Screen.Settings) }
+            NavItem(Icons.Rounded.Settings, tr("הגדרות"), current == Screen.Settings, dot = errors > 0) { AppState.navigateRoot(Screen.Settings) }
         }
         Column(Modifier.align(Alignment.TopCenter).offset(y = (-14).dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
@@ -150,7 +151,7 @@ fun BottomNav(current: Screen) {
                     .border(1.5.dp, Color(0x55FFFFFF), CircleShape)
                     .pressable { AppState.createMenu = !AppState.createMenu },
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Rounded.Add, "צור", tint = Color.White, modifier = Modifier.size(32.dp)) }
+            ) { Icon(Icons.Rounded.Add, tr("צור"), tint = Color.White, modifier = Modifier.size(32.dp)) }
         }
     }
 }
@@ -199,7 +200,7 @@ fun HomeScreen() {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.enter(i++)) {
             GradientText("Makeo 3D", 36.sp)
             Spacer(Modifier.height(4.dp))
-            Text("מתמונה אחת למודל תלת־ממד, ישירות בטלפון", color = C.Sub, fontSize = 14.sp, textAlign = TextAlign.Center)
+            Text(tr("מתמונה אחת למודל תלת־ממד, ישירות בטלפון"), color = C.Sub, fontSize = 14.sp, textAlign = TextAlign.Center)
         }
         StatusPill(status, Modifier.enter(i++))
 
@@ -208,26 +209,26 @@ fun HomeScreen() {
         UpdateCard()
         if (status !is ModelStore.Status.Ready) ModelCard(status)
 
-        GradientButton("צור מודל 3D", Modifier.fillMaxWidth().enter(i++), sparkles = true,
+        GradientButton(tr("צור מודל 3D"), Modifier.fillMaxWidth().enter(i++), sparkles = true,
             enabled = status is ModelStore.Status.Ready) { AppState.startNew() }
 
         val job = AppState.job
         when {
-            job != null && AppState.isRunning -> FeatureCard(Icons.Rounded.ViewInAr, "יוצר מודל…", job.status,
+            job != null && AppState.isRunning -> FeatureCard(Icons.Rounded.ViewInAr, tr("יוצר מודל…"), job.status,
                 Modifier.enter(i++), onClick = { AppState.navigate(Screen.Processing) }) {
                 PreviewPanel(AppState.framed ?: AppState.input, job.overall, "${(job.overall * 100).toInt()}%")
             }
-            job?.done == true && AppState.mesh != null -> FeatureCard(Icons.Rounded.CheckCircle, "המודל מוכן!", "לחץ לצפייה",
+            job?.done == true && AppState.mesh != null -> FeatureCard(Icons.Rounded.CheckCircle, tr("המודל מוכן!"), tr("לחץ לצפייה"),
                 Modifier.enter(i++), onClick = { AppState.showResult() }) {
                 PreviewPanel(AppState.framed, 1f, "100%")
             }
-            else -> FeatureCard(Icons.Rounded.AddPhotoAlternate, "תמונה לתלת־ממד", "גלריה, מצלמה או קובץ",
+            else -> FeatureCard(Icons.Rounded.AddPhotoAlternate, tr("תמונה לתלת־ממד"), tr("גלריה, מצלמה או קובץ"),
                 Modifier.enter(i++), onClick = { AppState.startNew() }) {
                 val last = AppState.projects.firstOrNull()
-                PreviewPanel(last?.let { rememberThumb(it) }, if (last != null) 1f else 0f, last?.name ?: "התחל")
+                PreviewPanel(last?.let { rememberThumb(it) }, if (last != null) 1f else 0f, last?.name ?: tr("התחל"))
             }
         }
-        FeatureCard(Icons.Rounded.Layers, "יצירות להדפסה", "מחזיק מפתחות, חותכן עוגיות, QR, ליתופן ועוד",
+        FeatureCard(Icons.Rounded.Layers, tr("יצירות להדפסה"), tr("מחזיק מפתחות, חותכן עוגיות, QR, ליתופן ועוד"),
             Modifier.enter(i++), onClick = { AppState.createMenu = true }) {
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                 IconTile(Icons.Rounded.Lightbulb, 40.dp, C.Primary)
@@ -235,19 +236,19 @@ fun HomeScreen() {
                 IconTile(Icons.Rounded.QrCode2, 40.dp, C.Primary)
             }
         }
-        FeatureCard(Icons.Rounded.GridView, "הגלריה שלי", "${AppState.projects.size} מודלים שמורים",
+        FeatureCard(Icons.Rounded.GridView, tr("הגלריה שלי"), tr("{0} מודלים שמורים", AppState.projects.size),
             Modifier.enter(i++), onClick = { AppState.navigateRoot(Screen.Projects) }) {
             ThumbStack(AppState.projects.take(3))
         }
-        FeatureCard(Icons.Rounded.Memory, "מודלים ומעבדים", processorSummary(ctx),
+        FeatureCard(Icons.Rounded.Memory, tr("מודלים ומעבדים"), processorSummary(ctx),
             Modifier.enter(i++), onClick = { AppState.navigateRoot(Screen.Models) }) {
             ProcessorPanel()
         }
 
         if (AppState.projects.size > 3) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().enter(i++)) {
-                Text("יצירות אחרונות", color = C.Text, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text("הכל", color = C.Violet, fontSize = 14.sp, modifier = Modifier.pressable { AppState.navigateRoot(Screen.Projects) })
+                Text(tr("יצירות אחרונות"), color = C.Text, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text(tr("הכל"), color = C.Violet, fontSize = 14.sp, modifier = Modifier.pressable { AppState.navigateRoot(Screen.Projects) })
             }
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 items(AppState.projects.take(10), key = { it.id }) { p -> ProjectThumb(p, Modifier.width(132.dp)) }
@@ -258,18 +259,18 @@ fun HomeScreen() {
 }
 
 private fun processorSummary(ctx: android.content.Context): String {
-    if (ProbeUi.running) return "בודק את המעבדים…"
-    if (!Capabilities.probed(ctx)) return "ייבדק אחרי הורדת המודל"
-    return "פועל על ${Capabilities.best(ctx).label}"
+    if (ProbeUi.running) return tr("בודק את המעבדים…")
+    if (!Capabilities.probed(ctx)) return tr("ייבדק אחרי הורדת המודל")
+    return tr("פועל על {0}", Capabilities.best(ctx).label)
 }
 
 @Composable
 private fun StatusPill(status: ModelStore.Status, modifier: Modifier) {
     val (text, color) = when (status) {
-        ModelStore.Status.Ready -> (if (ProbeUi.running) "בודק את המעבדים…" else "המודל מוכן · עובד בלי אינטרנט") to C.Green
-        is ModelStore.Status.Downloading -> "מוריד את המודל ${(status.done * 100 / status.total)}%" to C.Violet
-        ModelStore.Status.Missing -> "צריך להוריד את המודל פעם אחת" to C.Amber
-        is ModelStore.Status.Failed -> "הורדת המודל נכשלה" to C.Red
+        ModelStore.Status.Ready -> (if (ProbeUi.running) tr("בודק את המעבדים…") else tr("המודל מוכן · עובד בלי אינטרנט")) to C.Green
+        is ModelStore.Status.Downloading -> tr("מוריד את המודל {0}%", (status.done * 100 / status.total)) to C.Violet
+        ModelStore.Status.Missing -> tr("צריך להוריד את המודל פעם אחת") to C.Amber
+        is ModelStore.Status.Failed -> tr("הורדת המודל נכשלה") to C.Red
     }
     Row(modifier.glass(CircleShape).padding(horizontal = 14.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(8.dp).clip(CircleShape).background(color))
@@ -320,7 +321,7 @@ private fun PreviewPanel(image: android.graphics.Bitmap?, progress: Float, label
 @Composable
 private fun ThumbStack(projects: List<Project>) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        if (projects.isEmpty()) Text("עוד אין מודלים", color = C.Faint, fontSize = 12.sp)
+        if (projects.isEmpty()) Text(tr("עוד אין מודלים"), color = C.Faint, fontSize = 12.sp)
         projects.reversed().forEachIndexed { idx, p ->
             val k = projects.size - 1 - idx
             val bmp = rememberThumb(p)
@@ -378,7 +379,7 @@ fun NoticeCard(text: String, onDismiss: () -> Unit) {
             Icon(Icons.Rounded.Warning, null, tint = C.Amber)
             Spacer(Modifier.width(10.dp))
             Text(text, color = C.Text, fontSize = 14.sp, modifier = Modifier.weight(1f))
-            Icon(Icons.Rounded.Close, "סגור", tint = C.Sub, modifier = Modifier.pressable(onClick = onDismiss))
+            Icon(Icons.Rounded.Close, tr("סגור"), tint = C.Sub, modifier = Modifier.pressable(onClick = onDismiss))
         }
     }
 }
@@ -394,15 +395,15 @@ fun CrashCard() {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.BugReport, null, tint = C.Red)
             Spacer(Modifier.width(10.dp))
-            Text("האפליקציה נסגרה בפעם הקודמת בגלל תקלה", color = C.Text, fontWeight = FontWeight.Bold,
+            Text(tr("האפליקציה נסגרה בפעם הקודמת בגלל תקלה"), color = C.Text, fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f))
         }
-        Text("העתק את הדוח והדבק אותו בצ'אט כדי שאוכל לתקן.", color = C.Sub, fontSize = 13.sp)
+        Text(tr("העתק את הדוח והדבק אותו בצ'אט כדי שאוכל לתקן."), color = C.Sub, fontSize = 13.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            GradientButton("העתק דוח", Modifier.weight(1f), icon = Icons.Rounded.ContentCopy) {
-                Actions.copy(ctx, r, "דוח הקריסה")
+            GradientButton(tr("העתק דוח"), Modifier.weight(1f), icon = Icons.Rounded.ContentCopy) {
+                Actions.copy(ctx, r, tr("דוח הקריסה"))
             }
-            SoftButton("סגור", Modifier.weight(0.6f)) { CrashLog.dismissPending(); report = null }
+            SoftButton(tr("סגור"), Modifier.weight(0.6f)) { CrashLog.dismissPending(); report = null }
         }
     }
 }
@@ -431,16 +432,16 @@ fun UpdateCard() {
             IconTile(Icons.Rounded.SystemUpdate, 40.dp, Brush.linearGradient(listOf(Color(0xFF22C55E), Color(0xFF14B8A6))))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("גרסה חדשה זמינה", color = C.Text, fontWeight = FontWeight.Bold)
-                Text("build ${u.build} · ${u.sizeMb} MB · המודל לא יורד שוב", color = C.Sub, fontSize = 12.sp)
+                Text(tr("גרסה חדשה זמינה"), color = C.Text, fontWeight = FontWeight.Bold)
+                Text(tr("build {0} · {1} MB · המודל לא יורד שוב", u.build, u.sizeMb), color = C.Sub, fontSize = 12.sp)
             }
         }
         when {
-            id == null -> GradientButton("עדכן עכשיו", Modifier.fillMaxWidth(), icon = Icons.Rounded.CloudDownload) {
+            id == null -> GradientButton(tr("עדכן עכשיו"), Modifier.fillMaxWidth(), icon = Icons.Rounded.CloudDownload) {
                 UpdateFlow.downloadId = Updater.download(ctx, u)
             }
-            UpdateFlow.progress < 0f -> SoftButton("ההורדה נכשלה, נסה שוב", Modifier.fillMaxWidth()) { UpdateFlow.downloadId = null }
-            UpdateFlow.progress >= 1f -> GradientButton("התקן", Modifier.fillMaxWidth()) { Updater.install(ctx, u) }
+            UpdateFlow.progress < 0f -> SoftButton(tr("ההורדה נכשלה, נסה שוב"), Modifier.fillMaxWidth()) { UpdateFlow.downloadId = null }
+            UpdateFlow.progress >= 1f -> GradientButton(tr("התקן"), Modifier.fillMaxWidth()) { Updater.install(ctx, u) }
             else -> GlowBar(UpdateFlow.progress, Modifier.fillMaxWidth())
         }
     }
@@ -455,7 +456,7 @@ fun ModelCard(status: ModelStore.Status, compact: Boolean = true) {
         error = null
         scope.launch {
             runCatching { ModelStore.startDownload(ctx) }
-                .onFailure { CrashLog.error("model download", it); error = "לא הצלחתי להתחיל הורדה: ${it.message}" }
+                .onFailure { CrashLog.error("model download", it); error = tr("לא הצלחתי להתחיל הורדה: {0}", it.message) }
         }
     }
     when (status) {
@@ -463,33 +464,33 @@ fun ModelCard(status: ModelStore.Status, compact: Boolean = true) {
             else Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.CheckCircle, null, tint = C.Green, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("המודל מותקן · ${ModelStore.sizeOnDisk(ctx) shr 20} MB", color = C.Green)
+                Text(tr("המודל מותקן · {0} MB", ModelStore.sizeOnDisk(ctx) shr 20), color = C.Green)
             }
         ModelStore.Status.Missing -> Section {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconTile(Icons.Rounded.CloudDownload, 44.dp)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("הורדת מודל ה-AI", color = C.Text, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text("פעם אחת, כ-1.6GB. ממשיך ברקע, מומלץ ב-Wi-Fi", color = C.Sub, fontSize = 12.sp)
+                    Text(tr("הורדת מודל ה-AI"), color = C.Text, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(tr("פעם אחת, כ-1.6GB. ממשיך ברקע, מומלץ ב-Wi-Fi"), color = C.Sub, fontSize = 12.sp)
                 }
             }
-            GradientButton("הורד מודל", Modifier.fillMaxWidth(), icon = Icons.Rounded.CloudDownload) { startDownload() }
+            GradientButton(tr("הורד מודל"), Modifier.fillMaxWidth(), icon = Icons.Rounded.CloudDownload) { startDownload() }
             error?.let { Text(it, color = C.Red, fontSize = 13.sp) }
         }
         is ModelStore.Status.Downloading -> Section {
             val pct = status.done.toFloat() / status.total
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("מוריד את המודל", color = C.Text, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text(tr("מוריד את המודל"), color = C.Text, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 GradientText("${(pct * 100).toInt()}%", 20.sp, brush = C.Primary)
             }
             GlowBar(pct, Modifier.fillMaxWidth(), C.Primary)
-            Text("${status.done shr 20} / ${status.total shr 20} MB · אפשר לצאת מהאפליקציה", color = C.Sub, fontSize = 12.sp)
-            SoftButton("בטל הורדה", Modifier.fillMaxWidth()) { ModelStore.cancel(ctx) }
+            Text(tr("{0} / {1} MB · אפשר לצאת מהאפליקציה", status.done shr 20, status.total shr 20), color = C.Sub, fontSize = 12.sp)
+            SoftButton(tr("בטל הורדה"), Modifier.fillMaxWidth()) { ModelStore.cancel(ctx) }
         }
-        is ModelStore.Status.Failed -> Section(title = "הורדת המודל נכשלה") {
+        is ModelStore.Status.Failed -> Section(title = tr("הורדת המודל נכשלה")) {
             Text(status.message, color = C.Red, fontSize = 13.sp)
-            GradientButton("נסה שוב", Modifier.fillMaxWidth()) { startDownload() }
+            GradientButton(tr("נסה שוב"), Modifier.fillMaxWidth()) { startDownload() }
         }
     }
 }
@@ -512,7 +513,7 @@ fun CreateScreen(onGallery: () -> Unit, onCamera: () -> Unit, onFiles: () -> Uni
     val preview = AppState.preview?.takeIf { it.source === image }
 
     Column(Modifier.fillMaxSize()) {
-        TopBar("תמונה לתלת־ממד", onBack = { AppState.back() })
+        TopBar(tr("תמונה לתלת־ממד"), onBack = { AppState.back() })
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Box(Modifier.enter(0)) {
@@ -533,14 +534,14 @@ fun CreateScreen(onGallery: () -> Unit, onCamera: () -> Unit, onFiles: () -> Uni
                                     if (x in 0f..shown.width.toFloat() && y in 0f..shown.height.toFloat()) AppState.tap(x, y)
                                 }
                             })
-                        if (AppState.tapPoints.isEmpty() && !AppState.previewBusy) Text("גע באובייקט שתרצה", color = C.Text, fontSize = 13.sp,
+                        if (AppState.tapPoints.isEmpty() && !AppState.previewBusy) Text(tr("גע באובייקט שתרצה"), color = C.Text, fontSize = 13.sp,
                             modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp).glass(CircleShape, strong = true)
                                 .padding(horizontal = 12.dp, vertical = 6.dp))
                         if (AppState.previewBusy) Row(Modifier.align(Alignment.Center).glass(CircleShape, strong = true)
                             .padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(Modifier.size(16.dp), color = C.Violet, strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp))
-                            Text("בוחר…", color = C.Text, fontSize = 12.sp)
+                            Text(tr("בוחר…"), color = C.Text, fontSize = 12.sp)
                         }
                     } else if (image != null) {
                         // By default show what the model will get: the cut-out framed on grey.
@@ -550,11 +551,11 @@ fun CreateScreen(onGallery: () -> Unit, onCamera: () -> Unit, onFiles: () -> Uni
                             .padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(Modifier.size(16.dp), color = C.Violet, strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp))
-                            Text(if (removeBg) "מסיר רקע…" else "מכין תצוגה…", color = C.Text, fontSize = 12.sp)
+                            Text(if (removeBg) tr("מסיר רקע…") else tr("מכין תצוגה…"), color = C.Text, fontSize = 12.sp)
                         }
                         if (preview != null) Row(Modifier.align(Alignment.BottomCenter).padding(10.dp).glass(CircleShape, strong = true)
                             .padding(3.dp)) {
-                            for ((label, original) in listOf("מה שהמודל רואה" to false, "מקור" to true)) {
+                            for ((label, original) in listOf(tr("מה שהמודל רואה") to false, tr("מקור") to true)) {
                                 val on = showOriginal == original
                                 Text(label, color = if (on) Color.White else C.Sub, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.clip(CircleShape).then(if (on) Modifier.background(C.Primary) else Modifier)
@@ -565,55 +566,55 @@ fun CreateScreen(onGallery: () -> Unit, onCamera: () -> Unit, onFiles: () -> Uni
                             .padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Rounded.AddPhotoAlternate, null, tint = C.Text, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("החלף", color = C.Text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text(tr("החלף"), color = C.Text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         }
                     } else Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         IconTile(Icons.Rounded.AddPhotoAlternate, 64.dp, C.Primary)
                         Spacer(Modifier.height(14.dp))
-                        Text("העלה תמונה", color = C.Text, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Text("גלריה · מצלמה · קבצים", color = C.Sub, fontSize = 13.sp)
+                        Text(tr("העלה תמונה"), color = C.Text, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        Text(tr("גלריה · מצלמה · קבצים"), color = C.Sub, fontSize = 13.sp)
                     }
                 }
                 DropdownMenu(sourceMenu, { sourceMenu = false }, containerColor = C.CardHigh,
                     shape = RoundedCornerShape(18.dp)) {
-                    SourceItem(Icons.Rounded.PhotoLibrary, "גלריה") { sourceMenu = false; onGallery() }
-                    SourceItem(Icons.Rounded.PhotoCamera, "מצלמה") { sourceMenu = false; onCamera() }
-                    SourceItem(Icons.Rounded.FolderOpen, "קבצים") { sourceMenu = false; onFiles() }
+                    SourceItem(Icons.Rounded.PhotoLibrary, tr("גלריה")) { sourceMenu = false; onGallery() }
+                    SourceItem(Icons.Rounded.PhotoCamera, tr("מצלמה")) { sourceMenu = false; onCamera() }
+                    SourceItem(Icons.Rounded.FolderOpen, tr("קבצים")) { sourceMenu = false; onFiles() }
                 }
             }
 
             if (tapAvailable && image != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SoftButton(if (tapMode) "סיום בחירה" else "בחר אובייקט בנגיעה", Modifier.weight(1f), Icons.Rounded.TouchApp) {
+                SoftButton(if (tapMode) tr("סיום בחירה") else tr("בחר אובייקט בנגיעה"), Modifier.weight(1f), Icons.Rounded.TouchApp) {
                     tapMode = !tapMode
                 }
-                if (AppState.tapPoints.isNotEmpty()) SoftButton("נקה", Modifier.weight(0.5f)) { AppState.clearTaps() }
+                if (AppState.tapPoints.isNotEmpty()) SoftButton(tr("נקה"), Modifier.weight(0.5f)) { AppState.clearTaps() }
             }
             preview?.issues?.forEach { IssueCard(it) }
 
             Row(Modifier.horizontalScroll(rememberScrollState()).enter(1), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                for (tip in listOf("אובייקט אחד במרכז", "תאורה טובה", "רקע פשוט", "האובייקט שלם", "זווית מעט מלמעלה")) {
+                for (tip in listOf(tr("אובייקט אחד במרכז"), tr("תאורה טובה"), tr("רקע פשוט"), tr("האובייקט שלם"), tr("זווית מעט מלמעלה"))) {
                     Chip(tip, C.Sub)
                 }
             }
 
-            if (generators.size > 1) Section(Modifier.enter(2), title = "מודל") {
+            if (generators.size > 1) Section(Modifier.enter(2), title = tr("מודל")) {
                 GeneratorCards(generators, generator) { generator = it; Settings.setGenerator(ctx, it) }
                 Text(generator.hint, color = C.Sub, fontSize = 12.sp)
             }
             if (generator == Generator.TRIPOSR) {
-                Section(Modifier.enter(2), title = "מעבד") {
+                Section(Modifier.enter(2), title = tr("מעבד")) {
                     BackendPicker(backend) { backend = it; Settings.setBackendChoice(ctx, it) }
                 }
-                Section(Modifier.enter(3), title = "רמת פירוט") {
+                Section(Modifier.enter(3), title = tr("רמת פירוט")) {
                     QualityCards(quality) { quality = it; Settings.setQuality(ctx, it) }
                     Text("${quality.resolution}³ · ${quality.hint}", color = C.Sub, fontSize = 12.sp)
                 }
             }
             Section(Modifier.enter(4)) {
-                ToggleRow("הסרת רקע אוטומטית", "מומלץ, אלא אם התמונה כבר בלי רקע", removeBg) {
+                ToggleRow(tr("הסרת רקע אוטומטית"), tr("מומלץ, אלא אם התמונה כבר בלי רקע"), removeBg) {
                     removeBg = it; Settings.setRemoveBackground(ctx, it); AppState.refreshPreview(it)
                 }
-                ToggleRow("החלקת משטח", "מסיר מדרגות קטנות ושומר על הצורה", smooth) {
+                ToggleRow(tr("החלקת משטח"), tr("מסיר מדרגות קטנות ושומר על הצורה"), smooth) {
                     smooth = it; Settings.setSmooth(ctx, it)
                 }
             }
@@ -623,10 +624,10 @@ fun CreateScreen(onGallery: () -> Unit, onCamera: () -> Unit, onFiles: () -> Uni
         Column(Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
             val modelReady = status is ModelStore.Status.Ready || generator == Generator.TRIPOSG
             if (!modelReady) {
-                Text("קודם צריך להוריד את המודל (במסך הבית)", color = C.Amber, fontSize = 13.sp,
+                Text(tr("קודם צריך להוריד את המודל (במסך הבית)"), color = C.Amber, fontSize = 13.sp,
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), textAlign = TextAlign.Center)
             }
-            GradientButton("צור מודל 3D", Modifier.fillMaxWidth(), sparkles = true,
+            GradientButton(tr("צור מודל 3D"), Modifier.fillMaxWidth(), sparkles = true,
                 enabled = image != null && modelReady && !AppState.isRunning) {
                 AppState.start(backend, quality, removeBg, smooth)
             }
@@ -652,37 +653,37 @@ private fun AdvancedOptions(smoothOn: Boolean, generator: Generator) {
             verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Tune, null, tint = C.Violet, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(10.dp))
-            Text("הגדרות מתקדמות", color = C.Text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, modifier = Modifier.weight(1f))
+            Text(tr("הגדרות מתקדמות"), color = C.Text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, modifier = Modifier.weight(1f))
             Icon(if (open) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, tint = C.Sub)
         }
         AnimatedVisibility(open) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("עוצמת החלקה: ${strength.roundToInt()}" + if (strength.roundToInt() == Settings.DEFAULT_SMOOTH) " (ברירת מחדל)" else "",
+                Text(tr("עוצמת החלקה: {0}", strength.roundToInt()) + if (strength.roundToInt() == Settings.DEFAULT_SMOOTH) tr(" (ברירת מחדל)") else "",
                     color = C.Text, fontSize = 14.sp)
                 Slider(strength, { strength = it }, valueRange = 1f..10f, enabled = smoothOn,
                     onValueChangeFinished = { Settings.setSmoothStrength(ctx, strength.roundToInt()) }, colors = sliderColors())
-                Text(if (smoothOn) "גבוה מעלים את \"הטבעות\" על המשטח, שמודפסות כפסים. נמוך שומר על פרטים קטנים."
-                    else "מופעל רק כשהחלקת משטח דולקת.", color = C.Sub, fontSize = 12.sp)
+                Text(if (smoothOn) tr("גבוה מעלים את \"הטבעות\" על המשטח, שמודפסות כפסים. נמוך שומר על פרטים קטנים.")
+                    else tr("מופעל רק כשהחלקת משטח דולקת."), color = C.Sub, fontSize = 12.sp)
                 Spacer(Modifier.height(6.dp))
                 if (generator == Generator.TRIPOSG) {
-                    Text("צעדי בנייה: ${steps.roundToInt()}" + if (steps.roundToInt() == Settings.DEFAULT_SG_STEPS) " (ברירת מחדל)" else "",
+                    Text(tr("צעדי בנייה: {0}", steps.roundToInt()) + if (steps.roundToInt() == Settings.DEFAULT_SG_STEPS) tr(" (ברירת מחדל)") else "",
                         color = C.Text, fontSize = 14.sp)
                     Slider(steps, { steps = it.roundToInt().toFloat() }, valueRange = 10f..50f,
                         onValueChangeFinished = { Settings.setSgSteps(ctx, steps.roundToInt()) }, colors = sliderColors())
-                    Text("יותר צעדים: צורה נקייה יותר אבל לאט יותר. הזמן עולה בערך ביחס ישר.", color = C.Sub, fontSize = 12.sp)
+                    Text(tr("יותר צעדים: צורה נקייה יותר אבל לאט יותר. הזמן עולה בערך ביחס ישר."), color = C.Sub, fontSize = 12.sp)
                     Spacer(Modifier.height(6.dp))
-                    ToggleRow("הכוונה חכמה (ניסיוני)",
-                        "מדלג על חישוב ההשוואה בחלק מהצעדים: כ-15% מהר יותר, הצורה כמעט זהה (98–99%).",
+                    ToggleRow(tr("הכוונה חכמה (ניסיוני)"),
+                        tr("מדלג על חישוב ההשוואה בחלק מהצעדים: כ-15% מהר יותר, הצורה כמעט זהה (98–99%)."),
                         smartGuidance) { smartGuidance = it; Settings.setSgGuidanceInterval(ctx, it) }
                 } else {
-                    Text("עובי ומילוי: %.0f".format(density) + if (density == TripoEngine.DENSITY_THRESHOLD) " (ברירת מחדל)" else "",
+                    Text(tr("עובי ומילוי: %.0f").format(density) + if (density == TripoEngine.DENSITY_THRESHOLD) tr(" (ברירת מחדל)") else "",
                         color = C.Text, fontSize = 14.sp)
                     Slider(density, { density = it.roundToInt().toFloat() }, valueRange = 5f..50f,
                         onValueChangeFinished = { Settings.setDensityThreshold(ctx, density) }, colors = sliderColors())
-                    Text("נמוך: מודל מלא יותר וחלקים דקים עבים יותר, טוב להדפסה. גבוה: מודל רזה וחד יותר.",
+                    Text(tr("נמוך: מודל מלא יותר וחלקים דקים עבים יותר, טוב להדפסה. גבוה: מודל רזה וחד יותר."),
                         color = C.Sub, fontSize = 12.sp)
                 }
-                SoftButton("אפס לברירת מחדל", Modifier.fillMaxWidth()) {
+                SoftButton(tr("אפס לברירת מחדל"), Modifier.fillMaxWidth()) {
                     Settings.resetAdvanced(ctx)
                     strength = Settings.DEFAULT_SMOOTH.toFloat(); density = TripoEngine.DENSITY_THRESHOLD
                     steps = Settings.DEFAULT_SG_STEPS.toFloat()
@@ -725,7 +726,7 @@ fun ProcessingScreen() {
         .animateFloat(0f, 1f, infiniteRepeatable(tween(1800, easing = LinearEasing), RepeatMode.Reverse), label = "s").value else 0.5f
 
     Column(Modifier.fillMaxSize()) {
-        TopBar(if (job.error != null) "משהו השתבש" else "יוצר את המודל שלך", onBack = { AppState.back() })
+        TopBar(if (job.error != null) tr("משהו השתבש") else tr("יוצר את המודל שלך"), onBack = { AppState.back() })
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
             ProgressRing(if (job.error != null) 0f else job.overall, Modifier.size(250.dp).enter(0), stroke = 9.dp) {
@@ -741,15 +742,15 @@ fun ProcessingScreen() {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Rounded.Warning, null, tint = C.Red)
                         Spacer(Modifier.width(8.dp))
-                        Text("היצירה נכשלה", color = C.Text, fontWeight = FontWeight.Bold)
+                        Text(tr("היצירה נכשלה"), color = C.Text, fontWeight = FontWeight.Bold)
                     }
                     Text(job.error, color = C.Sub, fontSize = 14.sp)
-                    GradientButton("העתק פרטי שגיאה", Modifier.fillMaxWidth(), icon = Icons.Rounded.ContentCopy) {
-                        Actions.copy(ctx, CrashLog.lastError ?: CrashLog.diagnostics(), "פרטי השגיאה")
+                    GradientButton(tr("העתק פרטי שגיאה"), Modifier.fillMaxWidth(), icon = Icons.Rounded.ContentCopy) {
+                        Actions.copy(ctx, CrashLog.lastError ?: CrashLog.diagnostics(), tr("פרטי השגיאה"))
                     }
                     if (job.backend != Backend.CPU) {
                         val next = Backend.entries[job.backend.ordinal + 1]
-                        SoftButton("נסה שוב עם ${next.short}", Modifier.fillMaxWidth()) {
+                        SoftButton(tr("נסה שוב עם {0}", next.short), Modifier.fillMaxWidth()) {
                             Settings.setBackendChoice(ctx, next)
                             AppState.back()
                             AppState.start(next, Settings.quality(ctx), Settings.removeBackground(ctx), Settings.smooth(ctx))
@@ -763,7 +764,7 @@ fun ProcessingScreen() {
                     Spacer(Modifier.height(6.dp))
                     val sec = if (LocalAnimations.current) rememberElapsed(job.startedAt) else 0L
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Chip("רץ על ${job.backend.label}", C.Violet)
+                        Chip(tr("רץ על {0}", job.backend.label), C.Violet)
                         Chip("%d:%02d".format(sec / 60, sec % 60), C.Sub)
                     }
                 }
@@ -780,12 +781,12 @@ fun ProcessingScreen() {
                         "${(job.stageProgress * 100).toInt()}%" else null)
                 }
             }
-            if (job.error == null) Text("אפשר לצאת מהאפליקציה: העבודה ממשיכה ברקע ותקבל התראה כשהמודל מוכן.",
+            if (job.error == null) Text(tr("אפשר לצאת מהאפליקציה: העבודה ממשיכה ברקע ותקבל התראה כשהמודל מוכן."),
                 color = C.Faint, fontSize = 13.sp, textAlign = TextAlign.Center)
         }
         Box(Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
-            if (job.error == null) SoftButton("ביטול", Modifier.fillMaxWidth()) { AppState.cancel() }
-            else SoftButton("חזרה", Modifier.fillMaxWidth()) { AppState.job = null; AppState.back() }
+            if (job.error == null) SoftButton(tr("ביטול"), Modifier.fillMaxWidth()) { AppState.cancel() }
+            else SoftButton(tr("חזרה"), Modifier.fillMaxWidth()) { AppState.job = null; AppState.back() }
         }
     }
 }
@@ -813,18 +814,18 @@ fun BackendPicker(choice: Backend?, onChoice: (Backend?) -> Unit) {
     val ctx = LocalContext.current
     val results = remember(ProbeUi.tick, ProbeUi.running) { Capabilities.results(ctx) }
     val options = listOf<Backend?>(null) + Backend.entries
-    ChoiceCards(options, choice, { it?.short ?: "אוטומטי" }, onChoice, columns = 4,
-        subtitle = { b -> if (b == null) "המהיר" else results[b]?.support?.label ?: "לא נבדק" },
+    ChoiceCards(options, choice, { it?.short ?: tr("אוטומטי") }, onChoice, columns = 4,
+        subtitle = { b -> if (b == null) tr("המהיר") else results[b]?.support?.label ?: tr("לא נבדק") },
         icon = { b -> when (b) { null -> Icons.Rounded.AutoAwesome; Backend.NPU -> Icons.Rounded.Bolt
             Backend.GPU -> Icons.Rounded.ViewInAr; Backend.CPU -> Icons.Rounded.Memory } },
         disabled = { it != null && results[it]?.support in listOf(Support.UNSUPPORTED, Support.FAILED, Support.CRASHED) })
     if (choice == null) {
-        Text(if (Capabilities.probed(ctx)) "ייבחר אוטומטית: ${Capabilities.best(ctx).label}, המהיר שעבד בבדיקה"
-            else "בפעם הראשונה האפליקציה תבדוק אילו מעבדים עובדים ותבחר את המהיר", color = C.Sub, fontSize = 12.sp)
+        Text(if (Capabilities.probed(ctx)) tr("ייבחר אוטומטית: {0}, המהיר שעבד בבדיקה", Capabilities.best(ctx).label)
+            else tr("בפעם הראשונה האפליקציה תבדוק אילו מעבדים עובדים ותבחר את המהיר"), color = C.Sub, fontSize = 12.sp)
     }
-    if (ProbeUi.running) Text(ProbeUi.status.ifEmpty { "בודק את המעבדים…" }, color = C.Violet, fontSize = 12.sp)
+    if (ProbeUi.running) Text(ProbeUi.status.ifEmpty { tr("בודק את המעבדים…") }, color = C.Violet, fontSize = 12.sp)
     if (choice != null && results[choice]?.support != Support.OK && results[choice]?.support != Support.UNKNOWN) {
-        Text("${choice.short} לא עובד בטלפון הזה, היצירה עלולה להיכשל. מומלץ אוטומטי.", color = C.Amber, fontSize = 12.sp)
+        Text(tr("{0} לא עובד בטלפון הזה, היצירה עלולה להיכשל. מומלץ אוטומטי.", choice.short), color = C.Amber, fontSize = 12.sp)
     }
 }
 
@@ -846,16 +847,16 @@ fun NpuPackCard(status: ModelStore.Status) {
         ModelStore.Status.Ready -> Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.CheckCircle, null, tint = C.Green, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("חבילת NPU מותקנת · ${ModelStore.sizeOnDisk(ctx, ModelStore.NPU) shr 20} MB", color = C.Green)
+            Text(tr("חבילת NPU מותקנת · {0} MB", ModelStore.sizeOnDisk(ctx, ModelStore.NPU) shr 20), color = C.Green)
         }
         is ModelStore.Status.Downloading -> Section {
             val pct = status.done.toFloat() / status.total
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("מוריד חבילת NPU", color = C.Text, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text(tr("מוריד חבילת NPU"), color = C.Text, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 GradientText("${(pct * 100).toInt()}%", 20.sp, brush = C.Primary)
             }
             GlowBar(pct, Modifier.fillMaxWidth(), C.Primary)
-            SoftButton("בטל", Modifier.fillMaxWidth()) { ModelStore.cancel(ctx, ModelStore.NPU) }
+            SoftButton(tr("בטל"), Modifier.fillMaxWidth()) { ModelStore.cancel(ctx, ModelStore.NPU) }
         }
         else -> {
             val s = size
@@ -865,12 +866,12 @@ fun NpuPackCard(status: ModelStore.Status) {
                     IconTile(Icons.Rounded.Memory, 44.dp, C.Primary)
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("האצה עם ה-NPU", color = C.Text, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        Text("מודל שהוכן מראש לשבב של הטלפון · ${s shr 20} MB", color = C.Sub, fontSize = 12.sp)
+                        Text(tr("האצה עם ה-NPU"), color = C.Text, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(tr("מודל שהוכן מראש לשבב של הטלפון · {0} MB", s shr 20), color = C.Sub, fontSize = 12.sp)
                     }
                 }
                 if (status is ModelStore.Status.Failed) Text(status.message, color = C.Red, fontSize = 13.sp)
-                GradientButton("הורד חבילת NPU", Modifier.fillMaxWidth(), icon = Icons.Rounded.CloudDownload) {
+                GradientButton(tr("הורד חבילת NPU"), Modifier.fillMaxWidth(), icon = Icons.Rounded.CloudDownload) {
                     error = null
                     scope.launch {
                         runCatching { ModelStore.startDownload(ctx, ModelStore.NPU) }

@@ -19,12 +19,12 @@ import java.util.Random
 import kotlin.math.abs
 
 enum class Support(val label: String) {
-    UNKNOWN("לא נבדק"),
-    OK("עובד"),
-    FAILED("לא עובד"),
-    CRASHED("גרם לקריסה"),
-    UNSUPPORTED("לא נתמך בטלפון"),
-    NEEDS_PACK("צריך חבילת NPU"),
+    UNKNOWN(tr("לא נבדק")),
+    OK(tr("עובד")),
+    FAILED(tr("לא עובד")),
+    CRASHED(tr("גרם לקריסה")),
+    UNSUPPORTED(tr("לא נתמך בטלפון")),
+    NEEDS_PACK(tr("צריך חבילת NPU")),
 }
 
 data class BackendResult(val backend: Backend, val support: Support, val ms: Double = 0.0, val detail: String = "")
@@ -55,7 +55,7 @@ object Capabilities {
     fun results(ctx: Context): Map<Backend, BackendResult> {
         val json = prefs(ctx).getString("results", null)?.let { runCatching { JSONObject(it) }.getOrNull() }
         return Backend.entries.associateWith { b ->
-            if (b != Backend.CPU && !isSnapdragon()) return@associateWith BackendResult(b, Support.UNSUPPORTED, detail = "לא Snapdragon")
+            if (b != Backend.CPU && !isSnapdragon()) return@associateWith BackendResult(b, Support.UNSUPPORTED, detail = tr("לא Snapdragon"))
             if (AppState.crashedBefore(b)) return@associateWith BackendResult(b, Support.CRASHED)
             val o = json?.optJSONObject(b.name) ?: return@associateWith BackendResult(b,
                 if (b == Backend.CPU) Support.OK else Support.UNKNOWN)
@@ -88,7 +88,7 @@ object Capabilities {
         } else {
             var remaining = listOf(Backend.NPU, Backend.GPU).filter { !AppState.crashedBefore(it) }
             while (remaining.isNotEmpty()) {
-                onStatus("בודק אילו מעבדים עובדים בטלפון (${remaining.joinToString { it.short }})")
+                onStatus(tr("בודק אילו מעבדים עובדים בטלפון ({0})", remaining.joinToString { it.short }))
                 val out = File(ctx.filesDir, RESULT_FILE).apply { delete() }
                 val pack = NpuPack.isReady(ctx)
                 ctx.startService(Intent(ctx, ProbeService::class.java)
@@ -111,7 +111,7 @@ object Capabilities {
                             val parts = res.split(" ", limit = 4)
                             val enc = lines.firstOrNull { it.startsWith("${b.name}_ENCODER ") }?.substringAfter(" ")
                             found[b] = BackendResult(b, Support.valueOf(parts[1]), parts.getOrNull(2)?.toDoubleOrNull() ?: 0.0,
-                                listOfNotNull(parts.getOrNull(3), enc?.let { "encoder $it" }).joinToString(" "))
+                                listOfNotNull(parts.getOrNull(3), enc?.let { "encoder ${it}" }).joinToString(" "))
                         }
                         lines.any { it == "${b.name} START" } -> { crashedOn = b; found[b] = BackendResult(b, Support.CRASHED,
                             detail = "the test process died while testing ${b.name}") }
@@ -215,8 +215,8 @@ class ProbeService : Service() {
                     for (i in d.indices) errD = maxOf(errD, abs(d[i] - ref.first[i]))
                     for (i in col.indices) errC = maxOf(errC, abs(col[i] - ref.second[i]))
                     val rel = errD / range
-                    if (rel < 0.05f && errC < 0.05f) append("${b.name} OK $ms err=%.4f/%.4f".format(rel, errC))
-                    else append("${b.name} FAILED $ms wrong-results err=%.4f/%.4f".format(rel, errC))
+                    if (rel < 0.05f && errC < 0.05f) append("${b.name} OK ${ms} err=%.4f/%.4f".format(rel, errC))
+                    else append("${b.name} FAILED ${ms} wrong-results err=%.4f/%.4f".format(rel, errC))
                 }
             } catch (e: Throwable) {
                 append("${b.name} FAILED 0 ${(e.message ?: e.toString()).replace('\n', ' ').take(300)}")

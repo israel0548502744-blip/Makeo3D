@@ -264,11 +264,11 @@ object Templates {
 
     // ------------------------------------------------------------------ QR payloads
 
-    enum class QrType(val label: String) { LINK("קישור"), WIFI("Wi‑Fi"), WHATSAPP("וואטסאפ"), PHONE("טלפון"), TEXT("טקסט") }
+    enum class QrType(val label: String) { LINK(tr("קישור")), WIFI("Wi‑Fi"), WHATSAPP(tr("וואטסאפ")), PHONE(tr("טלפון")), TEXT(tr("טקסט")) }
 
     /** Text to encode for each preset (formats every phone camera understands). */
     fun qrPayload(type: QrType, a: String, b: String = ""): String = when (type) {
-        QrType.LINK -> a.trim().let { if (it.contains("://")) it else "https://$it" }
+        QrType.LINK -> a.trim().let { if (it.contains("://")) it else "https://${it}" }
         QrType.WIFI -> "WIFI:T:${if (b.isEmpty()) "nopass" else "WPA"};S:${wifiEscape(a)};" +
             (if (b.isEmpty()) "" else "P:${wifiEscape(b)};") + ";"
         QrType.WHATSAPP -> "https://wa.me/" + intlDigits(a) + if (b.isBlank()) "" else "?text=" + java.net.URLEncoder.encode(b, "UTF-8").replace("+", "%20")

@@ -31,7 +31,7 @@ class SgEngine(private val context: Context) : AutoCloseable {
         const val CONFIG = "sg_config.json"
         /** The DiT is split into this many parts (3 blocks each), see DIT_PARTS in export_triposg.py. */
         const val DIT_PARTS = 7
-        val GRAPHS = listOf("sg_dino") + (0 until DIT_PARTS).map { "sg_dit$it" } + listOf("sg_vae_kv", "sg_vae_query")
+        val GRAPHS = listOf("sg_dino") + (0 until DIT_PARTS).map { "sg_dit${it}" } + listOf("sg_vae_kv", "sg_vae_query")
         /** Probe variants (batch x blocks, h = fp16 weights), see triposg-probe.yml. */
         val PROBES = listOf("b1x1", "b2x1", "b1x3", "b1x3h")
         const val COARSE = 64
@@ -85,7 +85,7 @@ class SgEngine(private val context: Context) : AutoCloseable {
     }
 
     private val env = OrtEnvironment.getEnvironment()
-    private val chip = NpuPack.chip() ?: throw IllegalStateException("TripoSG צריך מעבד Snapdragon 8 Elite")
+    private val chip = NpuPack.chip() ?: throw IllegalStateException(tr("TripoSG צריך מעבד Snapdragon 8 Elite"))
     val config = Config(JSONObject(ModelStore.file(context, CONFIG).readText()))
 
     private val activity = context.getSystemService(android.app.ActivityManager::class.java)
@@ -94,12 +94,12 @@ class SgEngine(private val context: Context) : AutoCloseable {
 
     private fun open(graph: String): OrtSession {
         val f = ModelStore.file(context, "${graph}_${chip}_ctx.onnx")
-        if (!f.exists()) throw IllegalStateException("חבילת TripoSG לא הורדה (${f.name})")
+        if (!f.exists()) throw IllegalStateException(tr("חבילת TripoSG לא הורדה ({0})", f.name))
         val opts = OrtSession.SessionOptions()
         opts.addQnn(TripoEngine.qnnOptions(Backend.NPU))
         val t0 = System.nanoTime()
         return env.createSession(f.absolutePath, opts).also {
-            CrashLog.log("TripoSG: opened $graph in %.1fs".format((System.nanoTime() - t0) / 1e9))
+            CrashLog.log("TripoSG: opened ${graph} in %.1fs".format((System.nanoTime() - t0) / 1e9))
         }
     }
 
@@ -111,17 +111,17 @@ class SgEngine(private val context: Context) : AutoCloseable {
         val am = context.getSystemService(android.app.ActivityManager::class.java)
         fun freeMb() = android.app.ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }.availMem shr 20
         val lines = ArrayList<String>()
-        fun line(t: String) { lines += t; CrashLog.log("TripoSG load test: $t") }
+        fun line(t: String) { lines += t; CrashLog.log("TripoSG load test: ${t}") }
         line("free RAM ${freeMb()} MB")
         val open = ArrayList<OrtSession>()
         var failed: String? = null
         try {
             for (g in GRAPHS) {
                 val size = ModelStore.file(context, "${g}_${chip}_ctx_qnn.bin").length() shr 20
-                if (freeMb() - size < MIN_FREE_MB) { line("$g ($size MB): not tried, only ${freeMb()} MB RAM free"); break }
+                if (freeMb() - size < MIN_FREE_MB) { line("${g} (${size} MB): not tried, only ${freeMb()} MB RAM free"); break }
                 val r = runCatching { open(g) }
-                r.onSuccess { open += it; line("$g ($size MB): OK, ${open.size} open, free ${freeMb()} MB") }
-                r.onFailure { line("$g ($size MB): FAILED with ${open.size} open: ${it.message?.take(160)}") }
+                r.onSuccess { open += it; line("${g} (${size} MB): OK, ${open.size} open, free ${freeMb()} MB") }
+                r.onFailure { line("${g} (${size} MB): FAILED with ${open.size} open: ${it.message?.take(160)}") }
                 if (r.isFailure) { failed = g; break }
             }
         } finally {
@@ -130,15 +130,15 @@ class SgEngine(private val context: Context) : AutoCloseable {
         failed?.let { g ->
             line("free after closing ${freeMb()} MB")
             runCatching { open(g).close() }
-                .onSuccess { line("$g alone: OK") }
-                .onFailure { line("$g alone: FAILED: ${it.message?.take(160)}") }
+                .onSuccess { line("${g} alone: OK") }
+                .onFailure { line("${g} alone: FAILED: ${it.message?.take(160)}") }
         }
         if (ModelStore.isReady(context, ModelStore.SG_PROBE)) for (p in PROBES) {
-            val g = "sg_probe_$p"
+            val g = "sg_probe_${p}"
             val size = ModelStore.file(context, "${g}_${chip}_ctx_qnn.bin").length() shr 20
             runCatching { open(g).close() }
-                .onSuccess { line("$g ($size MB): OK") }
-                .onFailure { line("$g ($size MB): FAILED: ${it.message?.substringAfterLast("Error code:")?.take(60)}") }
+                .onSuccess { line("${g} (${size} MB): OK") }
+                .onFailure { line("${g} (${size} MB): FAILED: ${it.message?.substringAfterLast("Error code:")?.take(60)}") }
         }
         return lines.joinToString("\n")
     }
@@ -147,7 +147,7 @@ class SgEngine(private val context: Context) : AutoCloseable {
     private fun stats(a: FloatArray): String {
         var nan = 0; var lo = Float.MAX_VALUE; var hi = -Float.MAX_VALUE; var sum = 0.0
         for (v in a) if (v.isNaN() || v.isInfinite()) nan++ else { if (v < lo) lo = v; if (v > hi) hi = v; sum += abs(v) }
-        return "n=${a.size} bad=$nan min=%.3g max=%.3g mean|x|=%.3g".format(lo, hi, sum / maxOf(1, a.size - nan))
+        return "n=${a.size} bad=${nan} min=%.3g max=%.3g mean|x|=%.3g".format(lo, hi, sum / maxOf(1, a.size - nan))
     }
 
     private fun tensor(data: FloatArray, vararg shape: Long) = OnnxTensor.createTensor(env, FloatBuffer.wrap(data), shape)
@@ -256,7 +256,7 @@ class SgEngine(private val context: Context) : AutoCloseable {
         CrashLog.log("TripoSG field ${stats(field)}, inside ${"%.1f".format(field.count { it > 0 } * 100.0 / field.size)}%")
 
         var mesh = timed(Stage.SURFACE) { SurfaceNets.extract(field, res + 1, c.bounds) }
-        if (mesh.vertexCount == 0) throw IllegalStateException("TripoSG לא מצא צורה. נסה תמונה אחרת.")
+        if (mesh.vertexCount == 0) throw IllegalStateException(tr("TripoSG לא מצא צורה. נסה תמונה אחרת."))
         CrashLog.log("TripoSG surface: ${mesh.vertexCount} vertices, ${mesh.triangleCount} triangles")
         mesh = timed(Stage.COLOR) {
             var m = if (smoothIterations > 0) MeshTools.smooth(mesh, smoothIterations) else mesh
@@ -278,9 +278,9 @@ class SgEngine(private val context: Context) : AutoCloseable {
         val condTokens = cond.size / c.condDim
         // Batch 2: [no image, image]. The unconditional branch sees zeros.
         val cond2 = FloatArray(2 * cond.size).also { System.arraycopy(cond, 0, it, cond.size, cond.size) }
-        if (c.parts.size != DIT_PARTS) throw IllegalStateException("חבילת TripoSG לא תואמת לגרסת האפליקציה, עדכן אחד מהם")
+        if (c.parts.size != DIT_PARTS) throw IllegalStateException(tr("חבילת TripoSG לא תואמת לגרסת האפליקציה, עדכן אחד מהם"))
         val sessions = ArrayList<OrtSession>()
-        try { for (i in 0 until DIT_PARTS) sessions += open("sg_dit$i") } catch (e: Throwable) { sessions.forEach { it.close() }; throw e }
+        try { for (i in 0 until DIT_PARTS) sessions += open("sg_dit${i}") } catch (e: Throwable) { sessions.forEach { it.close() }; throw e }
         try {
             tensor(cond2, 2, condTokens.toLong(), c.condDim.toLong()).use { condT ->
                 val both = FloatArray(2 * n)
@@ -319,38 +319,38 @@ class SgEngine(private val context: Context) : AutoCloseable {
         val lat = FloatArray(n) { rnd.nextGaussian().toFloat() }
         val sig = c.sigmas(steps)
         val condTokens = (cond.size / c.condDim).toLong()
-        if (c.parts.size != DIT_PARTS) throw IllegalStateException("חבילת TripoSG לא תואמת לגרסת האפליקציה, עדכן אחד מהם")
+        if (c.parts.size != DIT_PARTS) throw IllegalStateException(tr("חבילת TripoSG לא תואמת לגרסת האפליקציה, עדכן אחד מהם"))
         val cached = arrayOfNulls<OrtSession>(DIT_PARTS)
         var budget = DIT_PARTS
         var guidedSteps = 0
         /** The session for part i and whether it must be closed after use. */
         fun session(i: Int): Pair<OrtSession, Boolean> {
             cached[i]?.let { return it to false }
-            val need = partMb("sg_dit$i")
+            val need = partMb("sg_dit${i}")
             // Each loaded part also takes its size in RAM, and Android kills the app when free
             // memory runs low: drop kept parts until this one fits with a margin.
             while (freeMb() - need < MIN_FREE_MB && cached.any { it != null }) {
                 val j = cached.indexOfLast { it != null }
                 cached[j]!!.close(); cached[j] = null
                 budget = minOf(budget, cached.count { it != null } + 1)
-                CrashLog.log("TripoSG: RAM low (${freeMb()} MB free), unloaded part $j, keeping ${budget - 1}")
+                CrashLog.log("TripoSG: RAM low (${freeMb()} MB free), unloaded part ${j}, keeping ${budget - 1}")
             }
             while (true) {
                 val open = cached.count { it != null }
                 val roomy = freeMb() - need >= KEEP_FREE_MB
                 try {
-                    val s = open("sg_dit$i")
+                    val s = open("sg_dit${i}")
                     // Keep it if there is room, leaving one slot for the parts loaded per step.
                     val keep = roomy && (open < budget - 1 || (budget == DIT_PARTS && open < budget))
                     if (!keep && budget > open + 1) {
                         budget = open + 1
-                        CrashLog.log("TripoSG: keeping $open parts loaded (${freeMb()} MB RAM free), the rest per step")
+                        CrashLog.log("TripoSG: keeping ${open} parts loaded (${freeMb()} MB RAM free), the rest per step")
                     }
                     return if (keep) { cached[i] = s; s to false } else s to true
                 } catch (e: Throwable) {
                     if (open == 0) throw e
                     budget = open
-                    CrashLog.log("TripoSG: NPU full with $open parts loaded, keeping ${budget - 1}")
+                    CrashLog.log("TripoSG: NPU full with ${open} parts loaded, keeping ${budget - 1}")
                     for (j in cached.indices.reversed()) if (cached[j] != null && cached.count { it != null } > budget - 1) {
                         cached[j]!!.close(); cached[j] = null
                     }
@@ -389,7 +389,7 @@ class SgEngine(private val context: Context) : AutoCloseable {
         } finally {
             cached.forEach { it?.close() }
         }
-        CrashLog.log("TripoSG: guidance on $guidedSteps of $steps steps")
+        CrashLog.log("TripoSG: guidance on ${guidedSteps} of ${steps} steps")
         return lat
     }
 
@@ -411,8 +411,8 @@ class SgEngine(private val context: Context) : AutoCloseable {
                             "latents" -> latT
                             "temb" -> tembT
                             "cond" -> conds[b]
-                            "hidden_in" -> hidden[b] ?: throw IllegalStateException("no hidden state for part $i")
-                            else -> named[b][name] ?: throw IllegalStateException("missing $name for part $i")
+                            "hidden_in" -> hidden[b] ?: throw IllegalStateException("no hidden state for part ${i}")
+                            else -> named[b][name] ?: throw IllegalStateException("missing ${name} for part ${i}")
                         }
                         val r = sess.run(feeds)
                         if (i == DIT_PARTS - 1) { out[b] = r.use { it.floats() }; continue }
@@ -449,8 +449,8 @@ class SgEngine(private val context: Context) : AutoCloseable {
                     "latents" -> latT
                     "temb" -> tembT
                     "cond" -> condT
-                    "hidden_in" -> hidden ?: throw IllegalStateException("no hidden state for part $i")
-                    else -> named[name] ?: throw IllegalStateException("missing $name for part $i")
+                    "hidden_in" -> hidden ?: throw IllegalStateException("no hidden state for part ${i}")
+                    else -> named[name] ?: throw IllegalStateException("missing ${name} for part ${i}")
                 }
                 val r = sess.run(feeds)
                 if (i == s.size - 1) return r.use { it.floats() }
@@ -540,7 +540,7 @@ class SgEngine(private val context: Context) : AutoCloseable {
                         query(r2, idx, idx.size, fine)
                         vals = fine; r = r2; g = g2
                     }
-                    CrashLog.log("TripoSG field: query points per level $counts, $chunks chunks: NPU %.1fs, ".format(runNs / 1e9) +
+                    CrashLog.log("TripoSG field: query points per level ${counts}, ${chunks} chunks: NPU %.1fs, ".format(runNs / 1e9) +
                         "embedding %.1fs (waited %.1fs)".format(embedNs / 1e9, waitNs / 1e9))
                     // Outer layer counts as outside, so the surface is always closed.
                     for (i in 0 until g) for (j in 0 until g) for (k in 0 until g)

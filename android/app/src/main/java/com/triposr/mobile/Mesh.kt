@@ -63,7 +63,7 @@ class Mesh(
         for (v in 0 until n) w.write("vn ${t.normals[v * 3]} ${t.normals[v * 3 + 1]} ${t.normals[v * 3 + 2]}\n")
         for (k in 0 until t.indices.size / 3) {
             val a = t.indices[k * 3] + 1; val b = t.indices[k * 3 + 1] + 1; val c = t.indices[k * 3 + 2] + 1
-            w.write("f $a/$a/$a $b/$b/$b $c/$c/$c\n")
+            w.write("f ${a}/${a}/${a} ${b}/${b}/${b} ${c}/${c}/${c}\n")
         }
         w.flush()
         zip.closeEntry()
@@ -89,7 +89,7 @@ class Mesh(
         }
         for (t in 0 until triangleCount) {
             val a = indices[t * 3] + 1; val b = indices[t * 3 + 1] + 1; val c = indices[t * 3 + 2] + 1
-            w.write("f $a//$a $b//$b $c//$c\n")
+            w.write("f ${a}//${a} ${b}//${b} ${c}//${c}\n")
         }
         w.flush()
     }

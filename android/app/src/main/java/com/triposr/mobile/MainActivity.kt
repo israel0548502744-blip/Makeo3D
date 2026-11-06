@@ -84,7 +84,7 @@ class MainActivity : ComponentActivity() {
         val ctx = LocalContext.current
         val onImage: (Uri?) -> Unit = { uri ->
             if (uri != null) Actions.loadBitmap(ctx, uri)?.let { AppState.setImage(it, Actions.sourceInfo(ctx, uri)) }
-                ?: Actions.toast(ctx, "לא הצלחתי לפתוח את התמונה")
+                ?: Actions.toast(ctx, tr("לא הצלחתי לפתוח את התמונה"))
         }
         val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia(), onImage)
         val files = rememberLauncherForActivityResult(ActivityResultContracts.GetContent(), onImage)
@@ -103,7 +103,7 @@ class MainActivity : ComponentActivity() {
             AppState.update = runCatching { withContext(Dispatchers.IO) { Updater.check() } }
                 .onFailure {
                     CrashLog.log("Update check failed: ${it.message}")
-                    Health.report("בדיקת עדכונים", "לא הצלחתי לבדוק עדכונים: ${it.message}", Health.Level.WARNING)
+                    Health.report(tr("בדיקת עדכונים"), tr("לא הצלחתי לבדוק עדכונים: {0}", it.message), Health.Level.WARNING)
                 }.getOrNull()
         }
         LaunchedEffect(pendingPick) {

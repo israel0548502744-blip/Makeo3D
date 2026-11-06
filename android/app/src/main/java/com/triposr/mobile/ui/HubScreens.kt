@@ -1,5 +1,6 @@
 package com.triposr.mobile.ui
 
+import com.triposr.mobile.tr
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -84,12 +85,12 @@ fun Creations.Kind.icon(): ImageVector = when (this) {
 }
 
 fun Creations.Kind.blurb(): String = when (this) {
-    Creations.Kind.LITHOPHANE -> "תמונה שנגלית באור"
-    Creations.Kind.RELIEF -> "תמונה בולטת בצבע"
-    Creations.Kind.QR -> "קישור, Wi‑Fi, וואטסאפ"
-    Creations.Kind.NAME -> "שם עם חור לטבעת"
-    Creations.Kind.COOKIE -> "מציור או מתמונה"
-    Creations.Kind.STAMP -> "לבצק, חימר ושעווה"
+    Creations.Kind.LITHOPHANE -> tr("תמונה שנגלית באור")
+    Creations.Kind.RELIEF -> tr("תמונה בולטת בצבע")
+    Creations.Kind.QR -> tr("קישור, Wi‑Fi, וואטסאפ")
+    Creations.Kind.NAME -> tr("שם עם חור לטבעת")
+    Creations.Kind.COOKIE -> tr("מציור או מתמונה")
+    Creations.Kind.STAMP -> tr("לבצק, חימר ושעווה")
 }
 
 /**
@@ -126,7 +127,7 @@ fun CreateMenuContent() {
     ) {
         Box(Modifier.align(Alignment.CenterHorizontally).size(width = 40.dp, height = 4.dp).clip(CircleShape)
             .background(Color(0x40FFFFFF)))
-        Text("מה ניצור היום?", color = C.Text, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(tr("מה ניצור היום?"), color = C.Text, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(C.Primary)
                 .pressable { AppState.createMenu = false; AppState.startNew() }.padding(16.dp),
@@ -138,12 +139,12 @@ fun CreateMenuContent() {
             }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text("תמונה לתלת־ממד", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                Text("מודל מלא מכל זווית, מתמונה אחת", color = Color(0xE6FFFFFF), fontSize = 12.sp)
+                Text(tr("תמונה לתלת־ממד"), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                Text(tr("מודל מלא מכל זווית, מתמונה אחת"), color = Color(0xE6FFFFFF), fontSize = 12.sp)
             }
             Icon(Icons.Rounded.AddPhotoAlternate, null, tint = Color.White)
         }
-        Text("יצירות להדפסה", color = C.Sub, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(tr("יצירות להדפסה"), color = C.Sub, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         for (row in Creations.Kind.entries.chunked(3)) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 for (k in row) Column(
@@ -175,41 +176,41 @@ fun ModelsScreen() {
     val usedMb = remember(status, npu, sg) { packs.sumOf { runCatching { ModelStore.sizeOnDisk(ctx, it) }.getOrDefault(0L) } shr 20 }
 
     Column(Modifier.fillMaxSize()) {
-        TopBar("מודלים")
+        TopBar(tr("מודלים"))
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(Modifier.fillMaxWidth().glass().padding(16.dp).enter(0), verticalAlignment = Alignment.CenterVertically) {
                 IconTile(Icons.Rounded.Storage, 44.dp, C.Primary)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("נפח בשימוש", color = C.Sub, fontSize = 12.sp)
-                    GradientText(if (usedMb >= 1024) "%.1f GB".format(usedMb / 1024f) else "$usedMb MB", 24.sp)
+                    Text(tr("נפח בשימוש"), color = C.Sub, fontSize = 12.sp)
+                    GradientText(if (usedMb >= 1024) "%.1f GB".format(usedMb / 1024f) else "${usedMb} MB", 24.sp)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("${packs.count { ModelStore.isReady(ctx, it) }} מותקנים", color = C.Text, fontSize = 13.sp)
-                    Text("הכל עובד בלי אינטרנט", color = C.Faint, fontSize = 11.sp)
+                    Text(tr("{0} מותקנים", packs.count { ModelStore.isReady(ctx, it) }), color = C.Text, fontSize = 13.sp)
+                    Text(tr("הכל עובד בלי אינטרנט"), color = C.Faint, fontSize = 11.sp)
                 }
             }
 
             val generators = remember(status, sg) { Generator.available(ctx) }
-            if (generators.size > 1) Section(Modifier.enter(1), title = "מודל ברירת מחדל ליצירה") {
+            if (generators.size > 1) Section(Modifier.enter(1), title = tr("מודל ברירת מחדל ליצירה")) {
                 var g by remember { mutableStateOf(Settings.generator(ctx)) }
                 GeneratorCards(generators, g) { g = it; Settings.setGenerator(ctx, it) }
             }
 
-            Section(Modifier.enter(2), title = "TripoSR · המודל הראשי") {
-                Text("תמונה לתלת־ממד עם צבעים. עובד על כל טלפון.", color = C.Sub, fontSize = 12.sp)
+            Section(Modifier.enter(2), title = tr("TripoSR · המודל הראשי")) {
+                Text(tr("תמונה לתלת־ממד עם צבעים. עובד על כל טלפון."), color = C.Sub, fontSize = 12.sp)
                 ModelCard(status, compact = false)
                 if (status is ModelStore.Status.Ready) NpuPackCard(npu)
-                if (status is ModelStore.Status.Ready && !AppState.isRunning) SoftButton("מחק · ${ModelStore.sizeOnDisk(ctx) shr 20} MB",
+                if (status is ModelStore.Status.Ready && !AppState.isRunning) SoftButton(tr("מחק · {0} MB", ModelStore.sizeOnDisk(ctx) shr 20),
                     Modifier.fillMaxWidth(), Icons.Rounded.Delete, color = C.Red) { confirmDelete = true }
             }
             ModelPacksSection()
             ExtrasSection()
 
-            Section(Modifier.enter(3), title = "המעבדים בטלפון") {
+            Section(Modifier.enter(3), title = tr("המעבדים בטלפון")) {
                 Text("${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · ${android.os.Build.SOC_MODEL}" +
-                    if (Capabilities.isSnapdragon()) " (Snapdragon)" else " (לא Snapdragon — רק CPU)", color = C.Text, fontSize = 13.sp)
+                    if (Capabilities.isSnapdragon()) " (Snapdragon)" else tr(" (לא Snapdragon — רק CPU)"), color = C.Text, fontSize = 13.sp)
                 val results = remember(ProbeUi.tick, crashTick) { Capabilities.results(ctx) }
                 for (r in results.values) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -224,7 +225,7 @@ fun ModelsScreen() {
                     if (r.detail.isNotEmpty() && r.support != Support.OK) Text(r.detail.take(160), color = C.Sub, fontSize = 11.sp)
                 }
                 if (ProbeUi.running) Text(ProbeUi.status, color = C.Violet, fontSize = 12.sp)
-                SoftButton(if (ProbeUi.running) "בודק…" else "בדוק שוב את המעבדים", Modifier.fillMaxWidth(), Icons.Rounded.Bolt,
+                SoftButton(if (ProbeUi.running) tr("בודק…") else tr("בדוק שוב את המעבדים"), Modifier.fillMaxWidth(), Icons.Rounded.Bolt,
                     enabled = !ProbeUi.running && status is ModelStore.Status.Ready) {
                     Backend.entries.forEach { AppState.clearCrashed(it) }
                     crashTick++
@@ -236,22 +237,24 @@ fun ModelsScreen() {
     }
     if (confirmDelete) AlertDialog(
         onDismissRequest = { confirmDelete = false }, containerColor = C.CardHigh,
-        title = { Text("למחוק את המודל?", color = C.Text) },
-        text = { Text("תצטרך להוריד אותו שוב (1.7GB) כדי ליצור מודלים חדשים. הפרויקטים השמורים נשארים.", color = C.Sub) },
-        confirmButton = { TextButton({ AppState.resetEngine(); ModelStore.delete(ctx); Capabilities.reset(ctx); confirmDelete = false }) { Text("מחק", color = C.Red) } },
-        dismissButton = { TextButton({ confirmDelete = false }) { Text("ביטול", color = C.Sub) } },
+        title = { Text(tr("למחוק את המודל?"), color = C.Text) },
+        text = { Text(tr("תצטרך להוריד אותו שוב (1.7GB) כדי ליצור מודלים חדשים. הפרויקטים השמורים נשארים."), color = C.Sub) },
+        confirmButton = { TextButton({ AppState.resetEngine(); ModelStore.delete(ctx); Capabilities.reset(ctx); confirmDelete = false }) { Text(tr("מחק"), color = C.Red) } },
+        dismissButton = { TextButton({ confirmDelete = false }) { Text(tr("ביטול"), color = C.Sub) } },
     )
 }
 
 @Composable
 fun GeneratorCards(options: List<Generator>, selected: Generator, onSelect: (Generator) -> Unit) {
     ChoiceCards(options, selected, { it.label }, onSelect,
-        subtitle = { when (it) { Generator.TRIPOSR -> "מהיר, עם צבעים"; Generator.TRIPOSG -> "צורה חדה, בלי צבע" } },
+        subtitle = { when (it) { Generator.TRIPOSR -> tr("מהיר, עם צבעים"); Generator.TRIPOSG -> tr("צורה חדה, בלי צבע") } },
         icon = { when (it) { Generator.TRIPOSR -> Icons.Rounded.Bolt; Generator.TRIPOSG -> Icons.Rounded.ViewInAr } },
-        badge = { if (it == Generator.TRIPOSG) "ניסיוני" else null })
+        badge = { if (it == Generator.TRIPOSG) tr("ניסיוני") else null })
 }
 
-private val legalFiles = listOf("legal/terms_he.txt", "legal/privacy_he.txt", "third_party_licenses.txt")
+private val legalFiles get() = if (com.triposr.mobile.I18n.english)
+    listOf("legal/terms_en.txt", "legal/privacy_en.txt", "third_party_licenses.txt")
+else listOf("legal/terms_he.txt", "legal/privacy_he.txt", "third_party_licenses.txt")
 
 /** Terms of use, privacy policy and open-source licenses, as tabs. */
 @Composable
@@ -260,9 +263,9 @@ fun LegalScreen() {
     var tab by remember { mutableIntStateOf(AppState.legalTab) }
     val text = remember(tab) { runCatching { ctx.assets.open(legalFiles[tab]).bufferedReader().readText() }.getOrDefault("") }
     Column(Modifier.fillMaxSize()) {
-        TopBar("משפטי", onBack = { AppState.back() })
+        TopBar(tr("משפטי"), onBack = { AppState.back() })
         Box(Modifier.padding(horizontal = 20.dp)) {
-            Segmented(listOf(0, 1, 2), tab, { listOf("תנאי שימוש", "פרטיות", "רישיונות")[it] }, { tab = it })
+            Segmented(listOf(0, 1, 2), tab, { listOf(tr("תנאי שימוש"), tr("פרטיות"), tr("רישיונות"))[it] }, { tab = it })
         }
         Spacer(Modifier.height(12.dp))
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
@@ -302,26 +305,26 @@ fun TermsDialog(onAccept: () -> Unit) {
     AlertDialog(
         onDismissRequest = {}, containerColor = C.CardHigh,
         icon = { Icon(Icons.Rounded.CheckCircle, null, tint = C.Violet) },
-        title = { Text("לפני שמתחילים", color = C.Text, fontWeight = FontWeight.Bold) },
+        title = { Text(tr("לפני שמתחילים"), color = C.Text, fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 for (line in listOf(
-                    "התמונות שלך לא יוצאות מהטלפון: הכל מעובד במכשיר.",
-                    "אתה אחראי למה שאתה יוצר. דמויות, לוגואים ומותגים (למשל של דיסני) שייכים לבעליהם: אל תמכור הדפסות שלהם בלי רשות.",
-                    "המודלים נוצרים בבינה מלאכותית ועלולים להיות לא מדויקים. בדוק לפני הדפסה.",
+                    tr("התמונות שלך לא יוצאות מהטלפון: הכל מעובד במכשיר."),
+                    tr("אתה אחראי למה שאתה יוצר. דמויות, לוגואים ומותגים (למשל של דיסני) שייכים לבעליהם: אל תמכור הדפסות שלהם בלי רשות."),
+                    tr("המודלים נוצרים בבינה מלאכותית ועלולים להיות לא מדויקים. בדוק לפני הדפסה."),
                 )) Row {
                     Text("•", color = C.Violet, modifier = Modifier.width(14.dp))
                     Text(line, color = C.Sub, fontSize = 14.sp)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("תנאי שימוש", color = C.Violet, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                    Text(tr("תנאי שימוש"), color = C.Violet, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.clickable { AppState.openLegal(0) })
-                    Text("מדיניות פרטיות", color = C.Violet, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                    Text(tr("מדיניות פרטיות"), color = C.Violet, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.clickable { AppState.openLegal(1) })
                 }
             }
         },
-        confirmButton = { TextButton(onAccept) { Text("מסכים, בוא נתחיל", color = C.Violet, fontWeight = FontWeight.Bold) } },
+        confirmButton = { TextButton(onAccept) { Text(tr("מסכים, בוא נתחיל"), color = C.Violet, fontWeight = FontWeight.Bold) } },
     )
 }
 
@@ -332,12 +335,12 @@ fun RetiredScreen(r: com.triposr.mobile.RemoteConfig.Retired) {
     AlertDialog(
         onDismissRequest = {}, containerColor = C.CardHigh,
         icon = { Icon(Icons.Rounded.Bolt, null, tint = C.Violet) },
-        title = { Text("צריך לעדכן", color = C.Text, fontWeight = FontWeight.Bold) },
+        title = { Text(tr("צריך לעדכן"), color = C.Text, fontWeight = FontWeight.Bold) },
         text = { Text(r.message, color = C.Sub, fontSize = 14.sp) },
         confirmButton = {
             if (r.url.isNotBlank()) TextButton({
                 runCatching { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(r.url))) }
-            }) { Text("להתקנה", color = C.Violet, fontWeight = FontWeight.Bold) }
+            }) { Text(tr("להתקנה"), color = C.Violet, fontWeight = FontWeight.Bold) }
         },
     )
 }

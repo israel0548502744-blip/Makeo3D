@@ -51,17 +51,17 @@ object CrashLog {
         flag.delete()
         pendingReport = when {
             javaCrash != null -> javaCrash
-            exit != null -> buildReport("Previous session ended: $exit", null,
+            exit != null -> buildReport("Previous session ended: ${exit}", null,
                 previousLog.takeIf { it.exists() }?.readLines()?.takeLast(120))
             else -> null
         }
-        if (javaCrash != null) Health.report("קריסה", "האפליקציה קרסה בהפעלה הקודמת (דוח מלא למעלה)")
-        else if (exit != null) Health.report("קריסה", "ההפעלה הקודמת הסתיימה בתקלה: ${exit.lineSequence().first()}")
+        if (javaCrash != null) Health.report(tr("קריסה"), tr("האפליקציה קרסה בהפעלה הקודמת (דוח מלא למעלה)"))
+        else if (exit != null) Health.report(tr("קריסה"), tr("ההפעלה הקודמת הסתיימה בתקלה: {0}", exit.lineSequence().first()))
 
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, e ->
             runCatching {
-                log("CRASH on thread ${thread.name}: $e")
+                log("CRASH on thread ${thread.name}: ${e}")
                 File(dir, "crash.txt").writeText(buildReport("Crash (uncaught exception)", e, lines.toList()))
                 File(dir, "crashed.flag").createNewFile()
             }
@@ -72,7 +72,7 @@ object CrashLog {
 
     @Synchronized
     fun log(message: String) {
-        val line = "${time.format(Date())} $message"
+        val line = "${time.format(Date())} ${message}"
         android.util.Log.i("TripoSR", message)
         lines.addLast(line)
         while (lines.size > MAX_LINES) lines.removeFirst()
@@ -81,10 +81,10 @@ object CrashLog {
 
     fun error(where: String, e: Throwable) {
         // Leaving a screen cancels its work; that is not an error worth a report.
-        if (e is kotlinx.coroutines.CancellationException) return log("$where: cancelled (screen left)")
-        log("ERROR in $where: $e")
+        if (e is kotlinx.coroutines.CancellationException) return log("${where}: cancelled (screen left)")
+        log("ERROR in ${where}: ${e}")
         Health.report(where, e.toString())
-        lastError = buildReport("Error in $where", e, lines.toList().takeLast(80))
+        lastError = buildReport("Error in ${where}", e, lines.toList().takeLast(80))
     }
 
     fun dismissPending() {
@@ -117,7 +117,7 @@ object CrashLog {
     }
 
     fun buildReport(title: String, e: Throwable?, log: List<String>?): String = buildString {
-        appendLine("=== Makeo 3D — $title ===")
+        appendLine("=== Makeo 3D — ${title} ===")
         appendLine("Time: ${stamp.format(Date())}")
         appendLine("App: ${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})")
         appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE})")
@@ -167,11 +167,11 @@ object CrashLog {
         return buildString {
             append(reason)
             append(" at ${stamp.format(Date(info.timestamp))}")
-            info.description?.let { append(" — $it") }
+            info.description?.let { append(" — ${it}") }
             append(" (pss ${info.pss shr 10} MB, rss ${info.rss shr 10} MB)")
             if (info.reason == ApplicationExitInfo.REASON_ANR) {
                 runCatching { info.traceInputStream?.bufferedReader()?.readText()?.take(3000) }
-                    .getOrNull()?.let { append("\n--- ANR trace ---\n$it") }
+                    .getOrNull()?.let { append("\n--- ANR trace ---\n${it}") }
             }
         }
     }
@@ -182,6 +182,7 @@ class TripoApp : Application() {
         super.onCreate()
         // The capability test runs in its own process and must not touch the app's logs/state.
         if (getProcessName().endsWith(":probe")) return
+        I18n.init(this)
         CrashLog.init(this)
         AppState.init(this)
     }

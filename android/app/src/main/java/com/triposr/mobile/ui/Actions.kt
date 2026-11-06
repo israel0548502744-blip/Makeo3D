@@ -1,5 +1,6 @@
 package com.triposr.mobile.ui
 
+import com.triposr.mobile.tr
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ContentValues
@@ -22,15 +23,15 @@ import com.triposr.mobile.SourceInfo
 import java.io.File
 
 object Actions {
-    fun copy(ctx: Context, text: String, what: String = "הדוח") {
+    fun copy(ctx: Context, text: String, what: String = tr("הדוח")) {
         val cm = ctx.getSystemService(ClipboardManager::class.java)
         cm.setPrimaryClip(ClipData.newPlainText("TripoSR report", text))
-        Toast.makeText(ctx, "$what הועתק — אפשר להדביק בצ'אט", Toast.LENGTH_SHORT).show()
+        Toast.makeText(ctx, tr("{0} הועתק — אפשר להדביק בצ'אט", what), Toast.LENGTH_SHORT).show()
     }
 
     fun shareText(ctx: Context, text: String) {
         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
-        ctx.startActivity(Intent.createChooser(send, "שתף דוח").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        ctx.startActivity(Intent.createChooser(send, tr("שתף דוח")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     const val SUPPORT_EMAIL = "israel0546631352@gmail.com"
@@ -39,7 +40,7 @@ object Actions {
     fun email(ctx: Context, subject: String, body: String, report: String? = null) {
         val send = Intent(Intent.ACTION_SEND).setType("message/rfc822")
             .putExtra(Intent.EXTRA_EMAIL, arrayOf(SUPPORT_EMAIL))
-            .putExtra(Intent.EXTRA_SUBJECT, "Makeo 3D · $subject")
+            .putExtra(Intent.EXTRA_SUBJECT, "Makeo 3D · ${subject}")
             .putExtra(Intent.EXTRA_TEXT, body)
         if (report != null) {
             val f = File(ctx.cacheDir, "report/makeo3d-report.txt").apply { parentFile?.mkdirs(); writeText(report) }
@@ -47,7 +48,7 @@ object Actions {
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         runCatching { ctx.startActivity(Intent.createChooser(send, subject).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-            .onFailure { Toast.makeText(ctx, "לא נמצאה אפליקציית מייל. כתוב לנו: $SUPPORT_EMAIL", Toast.LENGTH_LONG).show() }
+            .onFailure { Toast.makeText(ctx, tr("לא נמצאה אפליקציית מייל. כתוב לנו: {0}", SUPPORT_EMAIL), Toast.LENGTH_LONG).show() }
     }
 
     fun loadBitmap(ctx: Context, uri: Uri): Bitmap? = runCatching {
@@ -57,7 +58,7 @@ object Actions {
             val longest = maxOf(info.size.width, info.size.height)
             if (longest > 1536) decoder.setTargetSampleSize(longest / 1024)
         }.copy(Bitmap.Config.ARGB_8888, false)
-    }.onFailure { CrashLog.error("load image $uri", it) }.getOrNull()
+    }.onFailure { CrashLog.error("load image ${uri}", it) }.getOrNull()
 
     /** File name and whether the file has camera EXIF, for the screenshot warning. */
     fun sourceInfo(ctx: Context, uri: Uri): SourceInfo = runCatching {
@@ -95,24 +96,24 @@ object Actions {
             put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/TripoSR")
         }
         val uri = ctx.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-            ?: throw IllegalStateException("cannot create $file")
+            ?: throw IllegalStateException("cannot create ${file}")
         ctx.contentResolver.openOutputStream(uri)!!.buffered(1 shl 20).use { MeshTools.write(mesh, format, it) }
-        return "Download/TripoSR/$file"
+        return "Download/TripoSR/${file}"
     }
 
     fun share(ctx: Context, uri: Uri, format: ExportFormat) {
         val send = Intent(Intent.ACTION_SEND).setType(format.mime)
             .putExtra(Intent.EXTRA_STREAM, uri)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        ctx.startActivity(Intent.createChooser(send, "שתף מודל 3D").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        ctx.startActivity(Intent.createChooser(send, tr("שתף מודל 3D")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     fun openExternal(ctx: Context, uri: Uri) {
         val view = Intent(Intent.ACTION_VIEW).setDataAndType(uri, ExportFormat.GLB.mime)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         runCatching {
-            ctx.startActivity(Intent.createChooser(view, "פתח באפליקציה").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        }.onFailure { Toast.makeText(ctx, "לא נמצאה אפליקציה שפותחת GLB", Toast.LENGTH_LONG).show() }
+            ctx.startActivity(Intent.createChooser(view, tr("פתח באפליקציה")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }.onFailure { Toast.makeText(ctx, tr("לא נמצאה אפליקציה שפותחת GLB"), Toast.LENGTH_LONG).show() }
     }
 
     fun toast(ctx: Context, text: String) = Toast.makeText(ctx, text, Toast.LENGTH_LONG).show()

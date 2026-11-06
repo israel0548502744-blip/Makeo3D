@@ -1,5 +1,6 @@
 package com.triposr.mobile.ui
 
+import com.triposr.mobile.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -157,7 +158,7 @@ fun ResultScreen() {
         val r = withContext(Dispatchers.IO) { write() }
         val s = (System.nanoTime() - t0) / 1e9
         CrashLog.log("Export ${fmt.name} in %.2fs (${mesh.triangleCount} triangles, texture ${mesh.texture?.size ?: 0}px)".format(s))
-        exportTime = "ייצוא ${fmt.label}: %.1f ש׳".format(s)
+        exportTime = tr("ייצוא {0}: %.1f ש׳", fmt.label).format(s)
         return r
     }
 
@@ -168,15 +169,15 @@ fun ResultScreen() {
                 val uri = timedExport(fmt) { Actions.exportToCache(ctx, mesh, fmt, project.name) }
                 action(uri)
             } catch (e: Throwable) {
-                CrashLog.error("export", e); Actions.toast(ctx, "הייצוא נכשל: ${e.message}")
+                CrashLog.error("export", e); Actions.toast(ctx, tr("הייצוא נכשל: {0}", e.message))
             } finally { busy = false }
         }
     }
 
     Column(Modifier.fillMaxSize()) {
         TopBar(project.name, onBack = { AppState.back() }) {
-            CircleIcon(Icons.Rounded.Edit, "שנה שם") { renaming = true }
-            CircleIcon(Icons.Rounded.Share, "שתף") { export { Actions.share(ctx, it, format) } }
+            CircleIcon(Icons.Rounded.Edit, tr("שנה שם")) { renaming = true }
+            CircleIcon(Icons.Rounded.Share, tr("שתף")) { export { Actions.share(ctx, it, format) } }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -195,38 +196,38 @@ fun ResultScreen() {
                     onRelease = { it.onPause() },
                 )
                 Column(Modifier.align(Alignment.TopStart).padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ViewToggle(Icons.Rounded.Grid4x4, "רשת", wire) { wire = !wire }
-                    ViewToggle(Icons.Rounded.Palette, "צבע", colors) { colors = !colors }
-                    ViewToggle(Icons.Rounded.Lightbulb, "תאורה", light) { light = !light }
-                    ViewToggle(Icons.Rounded.GridOn, "רצפה", grid) { grid = !grid }
-                    ViewToggle(Icons.Rounded.Autorenew, "סיבוב", rotate) { rotate = !rotate }
-                    ViewToggle(Icons.Rounded.CenterFocusStrong, "איפוס", false) { view?.resetView() }
+                    ViewToggle(Icons.Rounded.Grid4x4, tr("רשת"), wire) { wire = !wire }
+                    ViewToggle(Icons.Rounded.Palette, tr("צבע"), colors) { colors = !colors }
+                    ViewToggle(Icons.Rounded.Lightbulb, tr("תאורה"), light) { light = !light }
+                    ViewToggle(Icons.Rounded.GridOn, tr("רצפה"), grid) { grid = !grid }
+                    ViewToggle(Icons.Rounded.Autorenew, tr("סיבוב"), rotate) { rotate = !rotate }
+                    ViewToggle(Icons.Rounded.CenterFocusStrong, tr("איפוס"), false) { view?.resetView() }
                 }
             }
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Chip(project.name, C.Text)
-                Chip("${"%,d".format(mesh.triangleCount)} פוליגונים")
-                Chip("${"%,d".format(mesh.vertexCount)} קודקודים")
-                Chip("%.1f שניות".format(project.seconds), C.Green)
-                if (project.geometrySeconds > 0) Chip("גאומטריה %.1f ש׳".format(project.geometrySeconds), C.Violet)
-                project.textureSeconds?.let { Chip("טקסטורה %.1f ש׳".format(it), C.Violet) }
-                if (mesh.texture != null) Chip("טקסטורה ${mesh.texture!!.size}px", C.Green)
+                Chip(tr("{0} פוליגונים", "%,d".format(mesh.triangleCount)))
+                Chip(tr("{0} קודקודים", "%,d".format(mesh.vertexCount)))
+                Chip(tr("%.1f שניות").format(project.seconds), C.Green)
+                if (project.geometrySeconds > 0) Chip(tr("גאומטריה %.1f ש׳").format(project.geometrySeconds), C.Violet)
+                project.textureSeconds?.let { Chip(tr("טקסטורה %.1f ש׳").format(it), C.Violet) }
+                if (mesh.texture != null) Chip(tr("טקסטורה {0}px", mesh.texture!!.size), C.Green)
                 exportTime?.let { Chip(it, C.Orange) }
                 Chip(project.backend, C.Orange)
             }
-            if (project.group != "craft") SoftButton("צור מחדש מאותה תמונה", Modifier.fillMaxWidth(), Icons.Rounded.Autorenew) {
+            if (project.group != "craft") SoftButton(tr("צור מחדש מאותה תמונה"), Modifier.fillMaxWidth(), Icons.Rounded.Autorenew) {
                 AppState.recreate(project)
             }
 
-            Section(title = "עריכה") {
-                Text("החלקה: ${smoothIt.roundToInt()}", color = C.Sub, fontSize = 13.sp)
+            Section(title = tr("עריכה")) {
+                Text(tr("החלקה: {0}", smoothIt.roundToInt()), color = C.Sub, fontSize = 13.sp)
                 Slider(smoothIt, { smoothIt = it }, valueRange = 0f..10f, colors = sliderColors())
-                Text("פישוט (פחות פוליגונים): ${(reduce * 100).toInt()}%", color = C.Sub, fontSize = 13.sp)
+                Text(tr("פישוט (פחות פוליגונים): {0}%", (reduce * 100).toInt()), color = C.Sub, fontSize = 13.sp)
                 Slider(reduce, { reduce = it }, valueRange = 0f..0.9f, colors = sliderColors())
                 if (reduce > 0.01f && (AppState.originalMesh ?: mesh).texture != null)
-                    Text("פישוט מבטל את הצביעה החדה (נשאר צבע בסיסי)", color = C.Amber, fontSize = 12.sp)
+                    Text(tr("פישוט מבטל את הצביעה החדה (נשאר צבע בסיסי)"), color = C.Amber, fontSize = 12.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    GradientButton("החל", Modifier.weight(1f), Icons.Rounded.Tune, enabled = !busy) {
+                    GradientButton(tr("החל"), Modifier.weight(1f), Icons.Rounded.Tune, enabled = !busy) {
                         busy = true
                         scope.launch {
                             val base = AppState.originalMesh ?: mesh
@@ -234,14 +235,14 @@ fun ResultScreen() {
                             AppState.mesh = m; edited = true; busy = false
                         }
                     }
-                    SoftButton("בטל", Modifier.weight(0.6f), enabled = edited) {
+                    SoftButton(tr("בטל"), Modifier.weight(0.6f), enabled = edited) {
                         AppState.mesh = AppState.originalMesh; edited = false; smoothIt = 0f; reduce = 0f
                     }
                 }
-                if (edited) SoftButton("שמור שינויים בפרויקט", Modifier.fillMaxWidth(), color = C.Green) {
+                if (edited) SoftButton(tr("שמור שינויים בפרויקט"), Modifier.fillMaxWidth(), color = C.Green) {
                     scope.launch(Dispatchers.IO) { AppState.saveEdits(mesh) }
                     edited = false; smoothIt = 0f; reduce = 0f
-                    Actions.toast(ctx, "נשמר")
+                    Actions.toast(ctx, tr("נשמר"))
                 }
             }
 
@@ -253,36 +254,36 @@ fun ResultScreen() {
                 },
                 onExport = { f -> export(f) { Actions.share(ctx, it, f) } })
 
-            Section(title = "ייצוא") {
+            Section(title = tr("ייצוא")) {
                 Segmented(formats, format, { it.label }, { format = it })
                 Text(when (format) {
-                    ExportFormat.GLB -> if (mesh.texture != null) "מומלץ: עם הטקסטורה החדה, נפתח בכל צופה 3D ובאנדרואיד"
-                        else "מומלץ: עם צבעים, נפתח בכל צופה 3D ובאנדרואיד"
-                    ExportFormat.OBJ_ZIP -> "ZIP עם OBJ, MTL ו-PNG: הטקסטורה החדה ל-Blender ו-MeshLab"
-                    ExportFormat.OBJ -> "Blender, Maya ותוכנות עריכה (צבע לכל קודקוד, בלי הטקסטורה)"
-                    ExportFormat.STL -> "להדפסה: מתוקן, במילימטרים, עומד על הבסיס (בלי צבע)"
-                    ExportFormat.THREE_MF -> "הפורמט של תוכנות ההדפסה: מתוקן, במילימטרים, עומד על הבסיס"
-                    ExportFormat.SVG -> "לחותך לייזר, ויניל או Cricut: קו חיתוך אדום וחלקים בולטים בשחור לחריטה, במילימטרים"
-                    ExportFormat.WRL -> "הדפסה בצבע מלא (שירותי הדפסה, מדפסות צבע): מתוקן, במילימטרים, עם הצבעים"
-                    ExportFormat.PLY -> "סריקות ו-MeshLab, צבע לכל קודקוד (בלי הטקסטורה)"
+                    ExportFormat.GLB -> if (mesh.texture != null) tr("מומלץ: עם הטקסטורה החדה, נפתח בכל צופה 3D ובאנדרואיד")
+                        else tr("מומלץ: עם צבעים, נפתח בכל צופה 3D ובאנדרואיד")
+                    ExportFormat.OBJ_ZIP -> tr("ZIP עם OBJ, MTL ו-PNG: הטקסטורה החדה ל-Blender ו-MeshLab")
+                    ExportFormat.OBJ -> tr("Blender, Maya ותוכנות עריכה (צבע לכל קודקוד, בלי הטקסטורה)")
+                    ExportFormat.STL -> tr("להדפסה: מתוקן, במילימטרים, עומד על הבסיס (בלי צבע)")
+                    ExportFormat.THREE_MF -> tr("הפורמט של תוכנות ההדפסה: מתוקן, במילימטרים, עומד על הבסיס")
+                    ExportFormat.SVG -> tr("לחותך לייזר, ויניל או Cricut: קו חיתוך אדום וחלקים בולטים בשחור לחריטה, במילימטרים")
+                    ExportFormat.WRL -> tr("הדפסה בצבע מלא (שירותי הדפסה, מדפסות צבע): מתוקן, במילימטרים, עם הצבעים")
+                    ExportFormat.PLY -> tr("סריקות ו-MeshLab, צבע לכל קודקוד (בלי הטקסטורה)")
                 }, color = C.Sub, fontSize = 12.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    GradientButton("שתף מודל", Modifier.weight(1f), Icons.Rounded.Share, enabled = !busy) {
+                    GradientButton(tr("שתף מודל"), Modifier.weight(1f), Icons.Rounded.Share, enabled = !busy) {
                         export { Actions.share(ctx, it, format) }
                     }
-                    SoftButton("שמור", Modifier.weight(0.8f), Icons.Rounded.Download, enabled = !busy) {
+                    SoftButton(tr("שמור"), Modifier.weight(0.8f), Icons.Rounded.Download, enabled = !busy) {
                         busy = true
                         scope.launch {
                             try {
                                 val path = timedExport(format) { Actions.saveToDownloads(ctx, mesh, format, project.name) }
-                                Actions.toast(ctx, "נשמר: $path")
+                                Actions.toast(ctx, tr("נשמר: {0}", path))
                             } catch (e: Throwable) {
-                                CrashLog.error("save", e); Actions.toast(ctx, "השמירה נכשלה: ${e.message}")
+                                CrashLog.error("save", e); Actions.toast(ctx, tr("השמירה נכשלה: {0}", e.message))
                             } finally { busy = false }
                         }
                     }
                 }
-                SoftButton("פתח בצופה חיצוני / AR", Modifier.fillMaxWidth(), Icons.AutoMirrored.Rounded.OpenInNew, enabled = !busy) {
+                SoftButton(tr("פתח בצופה חיצוני / AR"), Modifier.fillMaxWidth(), Icons.AutoMirrored.Rounded.OpenInNew, enabled = !busy) {
                     export(ExportFormat.GLB) { Actions.openExternal(ctx, it) }
                 }
             }
@@ -316,10 +317,10 @@ private fun RenameDialog(p: Project, onDone: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDone,
         containerColor = C.CardHigh,
-        title = { Text("שם המודל", color = C.Text) },
+        title = { Text(tr("שם המודל"), color = C.Text) },
         text = { OutlinedTextField(name, { name = it }, singleLine = true, colors = fieldColors()) },
-        confirmButton = { TextButton({ if (name.isNotBlank()) AppState.rename(p, name.trim()); onDone() }) { Text("שמור", color = C.Violet) } },
-        dismissButton = { TextButton(onDone) { Text("ביטול", color = C.Sub) } },
+        confirmButton = { TextButton({ if (name.isNotBlank()) AppState.rename(p, name.trim()); onDone() }) { Text(tr("שמור"), color = C.Violet) } },
+        dismissButton = { TextButton(onDone) { Text(tr("ביטול"), color = C.Sub) } },
     )
 }
 
@@ -334,42 +335,42 @@ private fun fieldColors() = OutlinedTextFieldDefaults.colors(
 internal fun PrintSection(print: PrintModel?, showThin: Boolean, busy: Boolean, baseCut: Float = 0f,
                          onBaseCut: (Float) -> Unit = {}, onShowThin: (Boolean) -> Unit, onExport: (ExportFormat) -> Unit) {
     var cutDraft by remember(baseCut) { mutableFloatStateOf(if (baseCut > 0f) baseCut else 3f) }
-    Section(title = "הדפסה בתלת־ממד") {
+    Section(title = tr("הדפסה בתלת־ממד")) {
         if (print == null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(Modifier.size(16.dp), color = C.Violet, strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))
-                Text("בודק את המודל להדפסה…", color = C.Sub, fontSize = 13.sp)
+                Text(tr("בודק את המודל להדפסה…"), color = C.Sub, fontSize = 13.sp)
             }
             return@Section
         }
         val r = print.report
         fun mm(x: Float) = "%.0f".format(x)
-        PrintRow(true, "גודל: ${mm(r.sizeMm[0])} × ${mm(r.sizeMm[1])} × ${mm(r.sizeMm[2])} מ״מ",
-            "הצלע הארוכה ${mm(r.sizeMm.max())} מ״מ · נפח %.1f סמ״ק".format(r.volumeCm3))
-        PrintRow(r.watertight, if (r.watertight) "אטום ותקין להדפסה" else "המודל לא אטום לגמרי",
+        PrintRow(true, tr("גודל: {0} × {1} × {2} מ״מ", mm(r.sizeMm[0]), mm(r.sizeMm[1]), mm(r.sizeMm[2])),
+            tr("הצלע הארוכה {0} מ״מ · נפח %.1f סמ״ק", mm(r.sizeMm.max())).format(r.volumeCm3))
+        PrintRow(r.watertight, if (r.watertight) tr("אטום ותקין להדפסה") else tr("המודל לא אטום לגמרי"),
             listOfNotNull(
-                r.nonManifoldBefore.takeIf { it > 0 }?.let { "תוקנו $it צלעות לא תקינות" },
-                r.holesFilled.takeIf { it > 0 }?.let { "נסגרו $it פתחים" },
-                r.floatersRemoved.takeIf { it > 0 }?.let { "הוסרו $it חלקים צפים" },
-                r.openEdgesAfter.takeIf { it > 0 }?.let { "נשארו $it צלעות פתוחות" },
-            ).joinToString(" · ").ifEmpty { "לא נדרש תיקון" })
+                r.nonManifoldBefore.takeIf { it > 0 }?.let { tr("תוקנו {0} צלעות לא תקינות", it) },
+                r.holesFilled.takeIf { it > 0 }?.let { tr("נסגרו {0} פתחים", it) },
+                r.floatersRemoved.takeIf { it > 0 }?.let { tr("הוסרו {0} חלקים צפים", it) },
+                r.openEdgesAfter.takeIf { it > 0 }?.let { tr("נשארו {0} צלעות פתוחות", it) },
+            ).joinToString(" · ").ifEmpty { tr("לא נדרש תיקון") })
         val wallOk = r.minWallMm.isNaN() || r.minWallMm >= Printability.THIN_MM
-        PrintRow(wallOk, if (r.minWallMm.isNaN()) "עובי דפנות: לא נמדד" else "דופן מינימלית: %.1f מ״מ".format(r.minWallMm),
-            if (r.thinShare > 0f) "%.1f%% מהמשטח דק מ-%.0f מ״מ (באדום)".format(r.thinShare * 100, Printability.THIN_MM)
-            else "אין אזורים דקים מ-%.0f מ״מ".format(Printability.THIN_MM))
-        ToggleRow("הצג אזורים דקים", "אדום: פחות מ-1 מ״מ · כתום: 1–2 מ״מ", showThin, onShowThin)
-        ToggleRow("בסיס שטוח", "חותך את התחתית כדי שהמודל יעמוד יציב על המגש", baseCut > 0f) { on -> onBaseCut(if (on) cutDraft else 0f) }
+        PrintRow(wallOk, if (r.minWallMm.isNaN()) tr("עובי דפנות: לא נמדד") else tr("דופן מינימלית: %.1f מ״מ").format(r.minWallMm),
+            if (r.thinShare > 0f) tr("%.1f%% מהמשטח דק מ-%.0f מ״מ (באדום)").format(r.thinShare * 100, Printability.THIN_MM)
+            else tr("אין אזורים דקים מ-%.0f מ״מ").format(Printability.THIN_MM))
+        ToggleRow(tr("הצג אזורים דקים"), tr("אדום: פחות מ-1 מ״מ · כתום: 1–2 מ״מ"), showThin, onShowThin)
+        ToggleRow(tr("בסיס שטוח"), tr("חותך את התחתית כדי שהמודל יעמוד יציב על המגש"), baseCut > 0f) { on -> onBaseCut(if (on) cutDraft else 0f) }
         if (baseCut > 0f) {
-            Text("גובה החיתוך: %.0f מ״מ".format(cutDraft), color = C.Text, fontSize = 13.sp)
+            Text(tr("גובה החיתוך: %.0f מ״מ").format(cutDraft), color = C.Text, fontSize = 13.sp)
             Slider(cutDraft, { cutDraft = it.roundToInt().toFloat() }, valueRange = 1f..20f,
                 onValueChangeFinished = { onBaseCut(cutDraft) }, colors = sliderColors())
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            GradientButton("3MF להדפסה", Modifier.weight(1f), Icons.Rounded.Share, enabled = !busy) { onExport(ExportFormat.THREE_MF) }
+            GradientButton(tr("3MF להדפסה"), Modifier.weight(1f), Icons.Rounded.Share, enabled = !busy) { onExport(ExportFormat.THREE_MF) }
             SoftButton("STL", Modifier.weight(0.7f), Icons.Rounded.Share, enabled = !busy) { onExport(ExportFormat.STL) }
         }
-        Text("עומד על הבסיס, ציר Z למעלה, במילימטרים. 3MF נפתח ישירות ב-Bambu Studio, PrusaSlicer ו-Cura.",
+        Text(tr("עומד על הבסיס, ציר Z למעלה, במילימטרים. 3MF נפתח ישירות ב-Bambu Studio, PrusaSlicer ו-Cura."),
             color = C.Sub, fontSize = 12.sp)
     }
 }
@@ -396,14 +397,14 @@ fun ProjectsScreen() {
         (tab.isEmpty() || it.group == tab) && (query.isBlank() || it.name.contains(query, ignoreCase = true))
     }
     Column(Modifier.fillMaxSize()) {
-        TopBar("הגלריה שלי")
+        TopBar(tr("הגלריה שלי"))
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            for ((key, label) in listOf("" to "הכל", "sr" to "מהיר (TripoSR)", "sg" to "מדויק (TripoSG)", "craft" to "יצירות להדפסה")) {
+            for ((key, label) in listOf("" to tr("הכל"), "sr" to tr("מהיר (TripoSR)"), "sg" to tr("מדויק (TripoSG)"), "craft" to tr("יצירות להדפסה"))) {
                 val n = if (key.isEmpty()) AppState.projects.size else AppState.projects.count { it.group == key }
                 if (key.isNotEmpty() && n == 0) continue
                 val on = tab == key
-                Text("$label · $n", color = if (on) Color.White else C.Sub, fontSize = 13.sp,
+                Text("${label} · ${n}", color = if (on) Color.White else C.Sub, fontSize = 13.sp,
                     fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
                     modifier = Modifier.clip(RoundedCornerShape(50))
                         .background(if (on) C.Violet else Color(0x14FFFFFF))
@@ -411,7 +412,7 @@ fun ProjectsScreen() {
             }
         }
         OutlinedTextField(query, { query = it }, singleLine = true, colors = fieldColors(),
-            placeholder = { Text("חיפוש פרויקטים…", color = C.Sub) },
+            placeholder = { Text(tr("חיפוש פרויקטים…"), color = C.Sub) },
             leadingIcon = { Icon(Icons.Rounded.Search, null, tint = C.Sub) },
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp))
@@ -420,11 +421,11 @@ fun ProjectsScreen() {
                 verticalArrangement = Arrangement.Center) {
                 Logo(72)
                 Spacer(Modifier.height(16.dp))
-                Text(if (AppState.projects.isEmpty()) "עוד אין מודלים" else "לא נמצאו תוצאות", color = C.Text,
+                Text(if (AppState.projects.isEmpty()) tr("עוד אין מודלים") else tr("לא נמצאו תוצאות"), color = C.Text,
                     fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text("כל מודל שתיצור יישמר כאן", color = C.Sub, textAlign = TextAlign.Center)
+                Text(tr("כל מודל שתיצור יישמר כאן"), color = C.Sub, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(16.dp))
-                GradientButton("צור מודל חדש", sparkles = true) { AppState.startNew() }
+                GradientButton(tr("צור מודל חדש"), sparkles = true) { AppState.startNew() }
             }
         } else {
             LazyVerticalGrid(GridCells.Fixed(2), Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -436,7 +437,7 @@ fun ProjectsScreen() {
                         Box(Modifier.align(Alignment.TopEnd).padding(16.dp).size(34.dp).clip(CircleShape)
                             .background(Color(0xAA120B2A)).border(1.dp, Color(0x33FFFFFF), CircleShape)
                             .pressable { toDelete = p }, contentAlignment = Alignment.Center) {
-                            Icon(Icons.Rounded.Delete, "מחק", tint = Color.White, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Rounded.Delete, tr("מחק"), tint = Color.White, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -446,9 +447,9 @@ fun ProjectsScreen() {
     toDelete?.let { p ->
         AlertDialog(
             onDismissRequest = { toDelete = null }, containerColor = C.CardHigh,
-            title = { Text("למחוק את \"${p.name}\"?", color = C.Text) },
-            confirmButton = { TextButton({ AppState.delete(p); toDelete = null }) { Text("מחק", color = C.Red) } },
-            dismissButton = { TextButton({ toDelete = null }) { Text("ביטול", color = C.Sub) } },
+            title = { Text(tr("למחוק את \"{0}\"?", p.name), color = C.Text) },
+            confirmButton = { TextButton({ AppState.delete(p); toDelete = null }) { Text(tr("מחק"), color = C.Red) } },
+            dismissButton = { TextButton({ toDelete = null }) { Text(tr("ביטול"), color = C.Sub) } },
         )
     }
 }
@@ -468,80 +469,107 @@ fun SettingsScreen() {
     val errors = problems.count { it.level == Health.Level.ERROR }
 
     Column(Modifier.fillMaxSize()) {
-        TopBar("הגדרות")
+        TopBar(tr("הגדרות"))
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Section(Modifier.enter(0), title = "תמיכה ומשוב") {
+            Section(Modifier.enter(0), title = tr("תמיכה ומשוב")) {
                 val waiting = CrashLog.pendingReport != null || errors > 0
-                NavRow(Icons.Rounded.BugReport, "דווח על תקלה",
-                    if (waiting) "נשמר דוח תקלה · לחץ כדי לשלוח לנו" else "שולח לנו דוח מצב שעוזר לתקן מהר",
+                NavRow(Icons.Rounded.BugReport, tr("דווח על תקלה"),
+                    if (waiting) tr("נשמר דוח תקלה · לחץ כדי לשלוח לנו") else tr("שולח לנו דוח מצב שעוזר לתקן מהר"),
                     badge = if (waiting) "1" else null, badgeColor = C.Amber,
                     brush = Brush.linearGradient(listOf(Color(0xFFF43F5E), Color(0xFFF97316)))) {
-                    Actions.email(ctx, "דיווח על תקלה", "מה קרה? (כמה מילים עוזרות מאוד)\n\n",
+                    Actions.email(ctx, tr("דיווח על תקלה"), tr("מה קרה? (כמה מילים עוזרות מאוד)\n\n"),
                         (CrashLog.pendingReport?.let { it + "\n\n" } ?: "") + CrashLog.diagnostics())
                 }
                 RowDivider()
-                NavRow(Icons.Rounded.Lightbulb, "הצעה לשיפור", "רעיון לפיצ'ר או משהו שיכול להיות טוב יותר") {
-                    Actions.email(ctx, "הצעה לשיפור", "")
+                NavRow(Icons.Rounded.Lightbulb, tr("הצעה לשיפור"), tr("רעיון לפיצ'ר או משהו שיכול להיות טוב יותר")) {
+                    Actions.email(ctx, tr("הצעה לשיפור"), "")
                 }
                 RowDivider()
-                NavRow(Icons.Rounded.Email, "צור קשר", Actions.SUPPORT_EMAIL) { Actions.email(ctx, "פנייה", "") }
+                NavRow(Icons.Rounded.Email, tr("צור קשר"), Actions.SUPPORT_EMAIL) { Actions.email(ctx, tr("פנייה"), "") }
+            }
+            Section(Modifier.enter(0), title = "שפה · Language") {
+                var lang by remember { mutableStateOf(com.triposr.mobile.I18n.choice(ctx)) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for ((c, label) in listOf(com.triposr.mobile.I18n.Choice.AUTO to tr("אוטומטי"),
+                        com.triposr.mobile.I18n.Choice.HE to "עברית", com.triposr.mobile.I18n.Choice.EN to "English")) {
+                        val on = lang == c
+                        Text(label, color = if (on) Color.White else C.Sub, fontSize = 13.sp,
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) C.Violet else Color(0x14FFFFFF))
+                                .pressable { lang = c; com.triposr.mobile.I18n.setChoice(ctx, c) }
+                                .padding(horizontal = 14.dp, vertical = 8.dp))
+                    }
+                }
+                run {
+                    val now = when (lang) {
+                        com.triposr.mobile.I18n.Choice.HE -> false
+                        com.triposr.mobile.I18n.Choice.EN -> true
+                        else -> java.util.Locale.getDefault().language !in setOf("he", "iw")
+                    }
+                    if (now != com.triposr.mobile.I18n.english) SoftButton("הפעל מחדש כדי להחליף שפה · Restart to switch", Modifier.fillMaxWidth()) {
+                        // A fresh process reads the new language from the start.
+                        val i = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)!!
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        ctx.startActivity(i)
+                        android.os.Process.killProcess(android.os.Process.myPid())
+                    }
+                }
             }
             Section(Modifier.enter(0)) {
-                if (!BuildConfig.STORE) NavRow(Icons.Rounded.BugReport, "דוחות ותקלות",
+                if (!BuildConfig.STORE) NavRow(Icons.Rounded.BugReport, tr("דוחות ותקלות"),
                     when {
-                        errors > 0 -> "$errors שגיאות זוהו · לחץ להעתקה ושליחה"
-                        problems.isNotEmpty() -> "${problems.size} אזהרות · הכל עובד"
-                        CrashLog.pendingReport != null -> "יש דוח קריסה מהפעלה קודמת"
-                        else -> "לא זוהו תקלות"
+                        errors > 0 -> tr("{0} שגיאות זוהו · לחץ להעתקה ושליחה", errors)
+                        problems.isNotEmpty() -> tr("{0} אזהרות · הכל עובד", problems.size)
+                        CrashLog.pendingReport != null -> tr("יש דוח קריסה מהפעלה קודמת")
+                        else -> tr("לא זוהו תקלות")
                     },
-                    badge = if (errors > 0) "$errors" else if (problems.isNotEmpty()) "${problems.size}" else null,
+                    badge = if (errors > 0) "${errors}" else if (problems.isNotEmpty()) "${problems.size}" else null,
                     badgeColor = if (errors > 0) C.Red else C.Amber,
                     brush = Brush.linearGradient(listOf(Color(0xFFF43F5E), Color(0xFFF97316)))) { AppState.navigate(Screen.Diagnostics) }
                 if (!BuildConfig.STORE) RowDivider()
-                NavRow(Icons.Rounded.Memory, "מודלים ומעבדים", "הורדה, מחיקה ובדיקת NPU/GPU") { AppState.navigateRoot(Screen.Models) }
+                NavRow(Icons.Rounded.Memory, tr("מודלים ומעבדים"), tr("הורדה, מחיקה ובדיקת NPU/GPU")) { AppState.navigateRoot(Screen.Models) }
             }
-            Section(Modifier.enter(1), title = "ברירות מחדל ליצירה") {
-                Text("מעבד", color = C.Sub, fontSize = 13.sp)
+            Section(Modifier.enter(1), title = tr("ברירות מחדל ליצירה")) {
+                Text(tr("מעבד"), color = C.Sub, fontSize = 13.sp)
                 BackendPicker(backend) { backend = it; Settings.setBackendChoice(ctx, it) }
-                Text("רמת פירוט", color = C.Sub, fontSize = 13.sp)
+                Text(tr("רמת פירוט"), color = C.Sub, fontSize = 13.sp)
                 QualityCards(quality) { quality = it; Settings.setQuality(ctx, it) }
                 RowDivider()
-                ToggleRow("הסרת רקע אוטומטית", null, removeBg) { removeBg = it; Settings.setRemoveBackground(ctx, it) }
-                ToggleRow("החלקת משטח", null, smooth) { smooth = it; Settings.setSmooth(ctx, it) }
-                ToggleRow("צביעה חדה (טקסטורה)", "פנים, בגדים והדפסים חדים יותר · מוסיף כמה שניות", texture) {
+                ToggleRow(tr("הסרת רקע אוטומטית"), null, removeBg) { removeBg = it; Settings.setRemoveBackground(ctx, it) }
+                ToggleRow(tr("החלקת משטח"), null, smooth) { smooth = it; Settings.setSmooth(ctx, it) }
+                ToggleRow(tr("צביעה חדה (טקסטורה)"), tr("פנים, בגדים והדפסים חדים יותר · מוסיף כמה שניות"), texture) {
                     texture = it; Settings.setBakeTexture(ctx, it)
                 }
             }
-            Section(Modifier.enter(2), title = "עדכונים") {
-                Text("גרסה ${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})", color = C.Text)
-                if (!BuildConfig.STORE) SoftButton(if (checking) "בודק…" else "בדוק עדכונים", Modifier.fillMaxWidth(), enabled = !checking) {
+            Section(Modifier.enter(2), title = tr("עדכונים")) {
+                Text(tr("גרסה {0} (build {1})", BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE), color = C.Text)
+                if (!BuildConfig.STORE) SoftButton(if (checking) tr("בודק…") else tr("בדוק עדכונים"), Modifier.fillMaxWidth(), enabled = !checking) {
                     checking = true
                     scope.launch {
                         updateMsg = runCatching { Updater.check() }.fold(
-                            { u -> AppState.update = u; if (u == null) "אתה בגרסה האחרונה" else null },
-                            { "הבדיקה נכשלה: ${it.message}" })
+                            { u -> AppState.update = u; if (u == null) tr("אתה בגרסה האחרונה") else null },
+                            { tr("הבדיקה נכשלה: {0}", it.message) })
                         checking = false
                     }
                 }
                 updateMsg?.let { Text(it, color = C.Sub, fontSize = 13.sp) }
                 UpdateCard()
             }
-            Section(Modifier.enter(3), title = "משפטי ופרטיות") {
-                NavRow(Icons.Rounded.Gavel, "תנאי שימוש", "אחריות על התוכן שאתה יוצר") { AppState.openLegal(0) }
+            Section(Modifier.enter(3), title = tr("משפטי ופרטיות")) {
+                NavRow(Icons.Rounded.Gavel, tr("תנאי שימוש"), tr("אחריות על התוכן שאתה יוצר")) { AppState.openLegal(0) }
                 RowDivider()
-                NavRow(Icons.Rounded.PrivacyTip, "מדיניות פרטיות", "התמונות לא יוצאות מהטלפון") { AppState.openLegal(1) }
+                NavRow(Icons.Rounded.PrivacyTip, tr("מדיניות פרטיות"), tr("התמונות לא יוצאות מהטלפון")) { AppState.openLegal(1) }
                 RowDivider()
-                NavRow(Icons.Rounded.Description, "רישיונות קוד פתוח", "המודלים והספריות שבאפליקציה") { AppState.openLegal(2) }
+                NavRow(Icons.Rounded.Description, tr("רישיונות קוד פתוח"), tr("המודלים והספריות שבאפליקציה")) { AppState.openLegal(2) }
             }
-            Section(Modifier.enter(4), title = "אודות") {
-                Text("תמונה לתלת־ממד ויצירות להדפסה, ישירות בטלפון. המודלים (TripoSR, TripoSG) רצים מקומית עם " +
-                    "ONNX Runtime ו-Qualcomm QNN, בלי שרת ובלי להעלות תמונות.", color = C.Sub, fontSize = 13.sp)
-                Text("עובד בכל טלפון אנדרואיד 13 ומעלה. בטלפונים בלי מאיץ בינה מלאכותית (NPU) החישוב רץ על המעבד " +
-                    "ולוקח יותר זמן, ובטלפון עם מעט זיכרון מודל כבד עלול להיכשל. TripoSG זמין רק בטלפונים עם " +
+            Section(Modifier.enter(4), title = tr("אודות")) {
+                Text(tr("תמונה לתלת־ממד ויצירות להדפסה, ישירות בטלפון. המודלים (TripoSR, TripoSG) רצים מקומית עם ") +
+                    tr("ONNX Runtime ו-Qualcomm QNN, בלי שרת ובלי להעלות תמונות."), color = C.Sub, fontSize = 13.sp)
+                Text(tr("עובד בכל טלפון אנדרואיד 13 ומעלה. בטלפונים בלי מאיץ בינה מלאכותית (NPU) החישוב רץ על המעבד ") +
+                    tr("ולוקח יותר זמן, ובטלפון עם מעט זיכרון מודל כבד עלול להיכשל. TripoSG זמין רק בטלפונים עם ") +
                     "Snapdragon 8 Elite.", color = C.Sub, fontSize = 13.sp)
-                Text("© 2026 Makeo 3D. כל הזכויות שמורות. הקוד, העיצוב, השם והמודלים המומרים שייכים ל-Makeo 3D; " +
-                    "רכיבי קוד פתוח שייכים לבעליהם ומופיעים ברישיונות.", color = C.Faint, fontSize = 12.sp)
+                Text(tr("© 2026 Makeo 3D. כל הזכויות שמורות. הקוד, העיצוב, השם והמודלים המומרים שייכים ל-Makeo 3D; ") +
+                    tr("רכיבי קוד פתוח שייכים לבעליהם ומופיעים ברישיונות."), color = C.Faint, fontSize = 12.sp)
             }
             Spacer(Modifier.height(8.dp))
         }
@@ -559,21 +587,21 @@ fun DiagnosticsScreen() {
     val lastError = remember(tick, healthTick) { CrashLog.lastError }
     val problems = remember(tick, healthTick) { Health.problems() }
     Column(Modifier.fillMaxSize()) {
-        TopBar("דוחות ותקלות", onBack = { AppState.back() })
+        TopBar(tr("דוחות ותקלות"), onBack = { AppState.back() })
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Section {
-                Text("כל תקלה שהאפליקציה מזהה נרשמת כאן: בדיקה אוטומטית בכל הפעלה (ספריות, מודלים, אחסון, מעבדים) " +
-                    "וכל שגיאה בזמן עבודה. העתק ושלח לי את הדוח המלא.", color = C.Sub, fontSize = 13.sp)
-                GradientButton("העתק דוח מלא", Modifier.fillMaxWidth(), Icons.Rounded.ContentCopy) {
-                    Actions.copy(ctx, (crash?.let { it + "\n\n" } ?: "") + report, "הדוח")
+                Text(tr("כל תקלה שהאפליקציה מזהה נרשמת כאן: בדיקה אוטומטית בכל הפעלה (ספריות, מודלים, אחסון, מעבדים) ") +
+                    tr("וכל שגיאה בזמן עבודה. העתק ושלח לי את הדוח המלא."), color = C.Sub, fontSize = 13.sp)
+                GradientButton(tr("העתק דוח מלא"), Modifier.fillMaxWidth(), Icons.Rounded.ContentCopy) {
+                    Actions.copy(ctx, (crash?.let { it + "\n\n" } ?: "") + report, tr("הדוח"))
                 }
             }
-            Section(title = if (problems.isEmpty()) null else "תקלות שזוהו (${problems.size})") {
+            Section(title = if (problems.isEmpty()) null else tr("תקלות שזוהו ({0})", problems.size)) {
                 if (problems.isEmpty()) Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.CheckCircle, null, tint = C.Green)
                     Spacer(Modifier.width(8.dp))
-                    Text("לא זוהו תקלות", color = C.Green, fontWeight = FontWeight.SemiBold)
+                    Text(tr("לא זוהו תקלות"), color = C.Green, fontWeight = FontWeight.SemiBold)
                 }
                 problems.asReversed().forEach { p ->
                     Row(verticalAlignment = Alignment.Top) {
@@ -587,22 +615,22 @@ fun DiagnosticsScreen() {
                     }
                 }
             }
-            if (crash != null) ReportSection("קריסה מהפעלה קודמת", crash, C.Red)
-            if (lastError != null) ReportSection("שגיאה אחרונה", lastError, C.Orange)
-            ReportSection("דוח מצב מלא", report, C.Violet)
+            if (crash != null) ReportSection(tr("קריסה מהפעלה קודמת"), crash, C.Red)
+            if (lastError != null) ReportSection(tr("שגיאה אחרונה"), lastError, C.Orange)
+            ReportSection(tr("דוח מצב מלא"), report, C.Violet)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SoftButton("רענן", Modifier.weight(1f), Icons.Rounded.Refresh) { tick++ }
-                SoftButton("נקה דוחות", Modifier.weight(1f), Icons.Rounded.Delete, color = C.Red) { confirmClear = true }
+                SoftButton(tr("רענן"), Modifier.weight(1f), Icons.Rounded.Refresh) { tick++ }
+                SoftButton(tr("נקה דוחות"), Modifier.weight(1f), Icons.Rounded.Delete, color = C.Red) { confirmClear = true }
             }
             Spacer(Modifier.height(8.dp))
         }
     }
     if (confirmClear) AlertDialog(
         onDismissRequest = { confirmClear = false }, containerColor = C.CardHigh,
-        title = { Text("לנקות את כל הדוחות?", color = C.Text) },
-        text = { Text("היומן, דוח הקריסה ורשימת התקלות יימחקו. אם יש תקלה שעוד לא שלחת, העתק אותה קודם.", color = C.Sub) },
-        confirmButton = { TextButton({ CrashLog.clear(); confirmClear = false; tick++ }) { Text("נקה", color = C.Red) } },
-        dismissButton = { TextButton({ confirmClear = false }) { Text("ביטול", color = C.Sub) } },
+        title = { Text(tr("לנקות את כל הדוחות?"), color = C.Text) },
+        text = { Text(tr("היומן, דוח הקריסה ורשימת התקלות יימחקו. אם יש תקלה שעוד לא שלחת, העתק אותה קודם."), color = C.Sub) },
+        confirmButton = { TextButton({ CrashLog.clear(); confirmClear = false; tick++ }) { Text(tr("נקה"), color = C.Red) } },
+        dismissButton = { TextButton({ confirmClear = false }) { Text(tr("ביטול"), color = C.Sub) } },
     )
 }
 
@@ -612,8 +640,8 @@ private fun ReportSection(title: String, text: String, color: Color) {
     Section {
         Text(title, color = color, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            GradientButton("העתק", Modifier.weight(1f), Icons.Rounded.ContentCopy) { Actions.copy(ctx, text) }
-            SoftButton("שתף", Modifier.weight(1f), Icons.Rounded.Share) { Actions.shareText(ctx, text) }
+            GradientButton(tr("העתק"), Modifier.weight(1f), Icons.Rounded.ContentCopy) { Actions.copy(ctx, text) }
+            SoftButton(tr("שתף"), Modifier.weight(1f), Icons.Rounded.Share) { Actions.shareText(ctx, text) }
         }
         // Logs are English/code: show them left-to-right in a monospace font.
         androidx.compose.runtime.CompositionLocalProvider(

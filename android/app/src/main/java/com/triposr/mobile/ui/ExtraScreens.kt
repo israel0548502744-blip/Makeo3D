@@ -1,5 +1,6 @@
 package com.triposr.mobile.ui
 
+import com.triposr.mobile.tr
 import android.graphics.Bitmap
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -97,7 +98,7 @@ fun ExtraScreen() {
     var lampMm by remember { mutableFloatStateOf(80f) }
     var stampImage by remember { mutableStateOf(false) }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) image = Actions.loadBitmap(ctx, uri) ?: run { Actions.toast(ctx, "לא הצלחתי לפתוח את התמונה"); null }
+        if (uri != null) image = Actions.loadBitmap(ctx, uri) ?: run { Actions.toast(ctx, tr("לא הצלחתי לפתוח את התמונה")); null }
     }
     val busy = Creations.busy
     val usesImage = kind.needsImage || (kind == Creations.Kind.STAMP && stampImage)
@@ -115,40 +116,40 @@ fun ExtraScreen() {
             verticalArrangement = Arrangement.spacedBy(14.dp)) {
             ChoiceChips(Creations.Kind.entries.toList(), kind, { it.label }, { kind = it; AppState.extraKind = it }, icon = { it.icon() })
             Text(when (kind) {
-                Creations.Kind.LITHOPHANE -> "לוח דק (או מנורה גלילית) שהתמונה מופיעה בו כשמאירים מאחור. מודפס בלבן, הכי פשוט ותמיד מצליח."
-                Creations.Kind.RELIEF -> "התמונה בולטת מהלוח לפי העומק שלה, עם הצבעים שלה."
-                Creations.Kind.QR -> "לוח עם קוד QR בולט שנסרק בטלפון: קישור, רשת Wi‑Fi, וואטסאפ או טלפון. החלף פילמנט בגובה 2 מ״מ לשני צבעים."
-                Creations.Kind.NAME -> "שם או מילה בולטים על בסיס, עם חור לטבעת. החלף פילמנט בגובה 2.4 מ״מ כדי שהאותיות יצאו בצבע אחר."
-                Creations.Kind.COOKIE -> "חותכן עוגיות בצורה של הציור או האובייקט בתמונה. מומלץ ציור פשוט עם קו מתאר ברור. " +
-                    "הקובץ אינו אישור בטיחות למזון: הבטיחות תלויה בחומר, במדפסת ובניקוי."
-                Creations.Kind.STAMP -> "חותמת לעוגיות, בצק, חימר או שעווה. ההדפסה הפוכה (מראה), כך שהחותם יוצא נכון. " +
-                    "במגע עם מזון: הבטיחות תלויה בחומר, במדפסת ובניקוי."
+                Creations.Kind.LITHOPHANE -> tr("לוח דק (או מנורה גלילית) שהתמונה מופיעה בו כשמאירים מאחור. מודפס בלבן, הכי פשוט ותמיד מצליח.")
+                Creations.Kind.RELIEF -> tr("התמונה בולטת מהלוח לפי העומק שלה, עם הצבעים שלה.")
+                Creations.Kind.QR -> tr("לוח עם קוד QR בולט שנסרק בטלפון: קישור, רשת Wi‑Fi, וואטסאפ או טלפון. החלף פילמנט בגובה 2 מ״מ לשני צבעים.")
+                Creations.Kind.NAME -> tr("שם או מילה בולטים על בסיס, עם חור לטבעת. החלף פילמנט בגובה 2.4 מ״מ כדי שהאותיות יצאו בצבע אחר.")
+                Creations.Kind.COOKIE -> tr("חותכן עוגיות בצורה של הציור או האובייקט בתמונה. מומלץ ציור פשוט עם קו מתאר ברור. ") +
+                    tr("הקובץ אינו אישור בטיחות למזון: הבטיחות תלויה בחומר, במדפסת ובניקוי.")
+                Creations.Kind.STAMP -> tr("חותמת לעוגיות, בצק, חימר או שעווה. ההדפסה הפוכה (מראה), כך שהחותם יוצא נכון. ") +
+                    tr("במגע עם מזון: הבטיחות תלויה בחומר, במדפסת ובניקוי.")
             }, color = C.Sub, fontSize = 13.sp)
 
             when (kind) {
                 Creations.Kind.QR -> {
                     ChoiceChips(Templates.QrType.entries.toList(), qrType, { it.label }, { qrType = it; text = ""; second = "" })
                     when (qrType) {
-                        Templates.QrType.LINK -> Field(text, "קישור", { text = it }, KeyboardType.Uri)
-                        Templates.QrType.WIFI -> { Field(text, "שם הרשת", { text = it }); Field(second, "סיסמה (ריק לרשת פתוחה)", { second = it }, KeyboardType.Password) }
-                        Templates.QrType.WHATSAPP -> { Field(text, "מספר טלפון", { text = it }, KeyboardType.Phone); Field(second, "הודעה מוכנה (לא חובה)", { second = it }) }
-                        Templates.QrType.PHONE -> Field(text, "מספר טלפון", { text = it }, KeyboardType.Phone)
-                        Templates.QrType.TEXT -> Field(text, "טקסט", { text = it })
+                        Templates.QrType.LINK -> Field(text, tr("קישור"), { text = it }, KeyboardType.Uri)
+                        Templates.QrType.WIFI -> { Field(text, tr("שם הרשת"), { text = it }); Field(second, tr("סיסמה (ריק לרשת פתוחה)"), { second = it }, KeyboardType.Password) }
+                        Templates.QrType.WHATSAPP -> { Field(text, tr("מספר טלפון"), { text = it }, KeyboardType.Phone); Field(second, tr("הודעה מוכנה (לא חובה)"), { second = it }) }
+                        Templates.QrType.PHONE -> Field(text, tr("מספר טלפון"), { text = it }, KeyboardType.Phone)
+                        Templates.QrType.TEXT -> Field(text, tr("טקסט"), { text = it })
                     }
-                    Field(caption, "כיתוב מתחת לקוד (לא חובה)", { caption = it })
+                    Field(caption, tr("כיתוב מתחת לקוד (לא חובה)"), { caption = it })
                     val payload = Templates.qrPayload(qrType, text, second)
                     val qr = remember(payload) { runCatching { if (text.isBlank()) null else Creations.qrBitmap(payload, 6) }.getOrNull() }
                     Box(Modifier.fillMaxWidth().height(240.dp).glass(RoundedCornerShape(26.dp)), contentAlignment = Alignment.Center) {
                         if (qr != null) Image(qr.asImageBitmap(), null, Modifier.size(200.dp).clip(RoundedCornerShape(10.dp)))
-                        else Text("מלא את הפרטים", color = C.Sub)
+                        else Text(tr("מלא את הפרטים"), color = C.Sub)
                     }
-                    if (qrType == Templates.QrType.WIFI) Text("הסיסמה נשמרת בתוך הקוד המודפס: כל מי שסורק אותו יכול לראות אותה.",
+                    if (qrType == Templates.QrType.WIFI) Text(tr("הסיסמה נשמרת בתוך הקוד המודפס: כל מי שסורק אותו יכול לראות אותה."),
                         color = C.Amber, fontSize = 12.sp)
                 }
-                Creations.Kind.NAME -> Field(text, "שם או טקסט", { text = it })
+                Creations.Kind.NAME -> Field(text, tr("שם או טקסט"), { text = it })
                 Creations.Kind.STAMP -> {
-                    ToggleRow("מתמונה", "ציור כהה על רקע לבן במקום טקסט", stampImage) { stampImage = it }
-                    if (!stampImage) Field(text, "טקסט לחותמת", { text = it })
+                    ToggleRow(tr("מתמונה"), tr("ציור כהה על רקע לבן במקום טקסט"), stampImage) { stampImage = it }
+                    if (!stampImage) Field(text, tr("טקסט לחותמת"), { text = it })
                 }
                 else -> {}
             }
@@ -162,56 +163,56 @@ fun ExtraScreen() {
                     else Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         IconTile(Icons.Rounded.AddPhotoAlternate, 56.dp, C.Primary)
                         Spacer(Modifier.height(10.dp))
-                        Text("בחר תמונה", color = C.Text, fontWeight = FontWeight.Bold)
+                        Text(tr("בחר תמונה"), color = C.Text, fontWeight = FontWeight.Bold)
                     }
                 }
             }
 
             when (kind) {
-                Creations.Kind.LITHOPHANE -> Section(title = "אפשרויות") {
-                    ToggleRow("גלילי (מנורה)", "התמונה מסביב לגליל. שמים בפנים נורת LED", lamp) { lamp = it }
+                Creations.Kind.LITHOPHANE -> Section(title = tr("אפשרויות")) {
+                    ToggleRow(tr("גלילי (מנורה)"), tr("התמונה מסביב לגליל. שמים בפנים נורת LED"), lamp) { lamp = it }
                     if (lamp) {
-                        Text("קוטר: %.0f מ״מ (הגובה לפי יחס התמונה)".format(lampMm), color = C.Text, fontSize = 14.sp)
+                        Text(tr("קוטר: %.0f מ״מ (הגובה לפי יחס התמונה)").format(lampMm), color = C.Text, fontSize = 14.sp)
                         Slider(lampMm, { lampMm = (it / 5).toInt() * 5f }, valueRange = 50f..120f, colors = sliderColors())
                     }
-                    ToggleRow("מסגרת", if (lamp) "שוליים עבים למעלה ולמטה" else "שוליים עבים שמחזיקים את הלוח ישר", frame) { frame = it }
-                    ToggleRow("נגטיב", "הופך בהיר וכהה", invert) { invert = it }
-                    Text("עובי מקסימלי: %.1f מ״מ".format(maxMm), color = C.Text, fontSize = 14.sp)
+                    ToggleRow(tr("מסגרת"), if (lamp) tr("שוליים עבים למעלה ולמטה") else tr("שוליים עבים שמחזיקים את הלוח ישר"), frame) { frame = it }
+                    ToggleRow(tr("נגטיב"), tr("הופך בהיר וכהה"), invert) { invert = it }
+                    Text(tr("עובי מקסימלי: %.1f מ״מ").format(maxMm), color = C.Text, fontSize = 14.sp)
                     Slider(maxMm, { maxMm = (it * 2).toInt() / 2f }, valueRange = 2f..5f, colors = sliderColors())
-                    Text("עבה יותר = ניגודיות גבוהה יותר, אבל צריך אור חזק יותר. הדק ביותר 0.8 מ״מ.", color = C.Sub, fontSize = 12.sp)
+                    Text(tr("עבה יותר = ניגודיות גבוהה יותר, אבל צריך אור חזק יותר. הדק ביותר 0.8 מ״מ."), color = C.Sub, fontSize = 12.sp)
                 }
                 Creations.Kind.RELIEF -> {
                     ExtraNeeded(Extras.DEPTH)
-                    Section(title = "אפשרויות") {
-                        ToggleRow("רקע שטוח", "רק האובייקט בולט", flatBg) { flatBg = it }
-                        Text("גובה התבליט: %.0f מ״מ".format(reliefMm), color = C.Text, fontSize = 14.sp)
+                    Section(title = tr("אפשרויות")) {
+                        ToggleRow(tr("רקע שטוח"), tr("רק האובייקט בולט"), flatBg) { flatBg = it }
+                        Text(tr("גובה התבליט: %.0f מ״מ").format(reliefMm), color = C.Text, fontSize = 14.sp)
                         Slider(reliefMm, { reliefMm = it.toInt().toFloat() }, valueRange = 3f..15f, colors = sliderColors())
                     }
                 }
-                Creations.Kind.NAME -> Section(title = "אפשרויות") {
+                Creations.Kind.NAME -> Section(title = tr("אפשרויות")) {
                     ChoiceCards(Templates.TagStyle.entries.toList(), tagStyle, {
-                        when (it) { Templates.TagStyle.OUTLINE -> "לפי האותיות"; Templates.TagStyle.PLATE -> "מלבן"; Templates.TagStyle.ROUND -> "עגול" }
+                        when (it) { Templates.TagStyle.OUTLINE -> tr("לפי האותיות"); Templates.TagStyle.PLATE -> tr("מלבן"); Templates.TagStyle.ROUND -> tr("עגול") }
                     }, { tagStyle = it }, columns = 3, subtitle = {
-                        when (it) { Templates.TagStyle.OUTLINE -> "קו מתאר סביב"; Templates.TagStyle.PLATE -> "לוחית קלאסית"; Templates.TagStyle.ROUND -> "קצוות מעוגלים" }
+                        when (it) { Templates.TagStyle.OUTLINE -> tr("קו מתאר סביב"); Templates.TagStyle.PLATE -> tr("לוחית קלאסית"); Templates.TagStyle.ROUND -> tr("קצוות מעוגלים") }
                     })
-                    ToggleRow("חור לטבעת", "למחזיק מפתחות. כבוי: שלט", keyring) { keyring = it }
-                    Text("גובה אותיות: %.0f מ״מ".format(letterMm), color = C.Text, fontSize = 14.sp)
+                    ToggleRow(tr("חור לטבעת"), tr("למחזיק מפתחות. כבוי: שלט"), keyring) { keyring = it }
+                    Text(tr("גובה אותיות: %.0f מ״מ").format(letterMm), color = C.Text, fontSize = 14.sp)
                     Slider(letterMm, { letterMm = it.toInt().toFloat() }, valueRange = 8f..30f, colors = sliderColors())
                 }
-                Creations.Kind.COOKIE -> Section(title = "אפשרויות") {
-                    ToggleRow("הסרת רקע", "לתמונה של אובייקט. כבוי: הצורה היא הקווים הכהים בציור", flatBg) { flatBg = it }
-                    Text("גודל: %.0f מ״מ".format(cookieMm), color = C.Text, fontSize = 14.sp)
+                Creations.Kind.COOKIE -> Section(title = tr("אפשרויות")) {
+                    ToggleRow(tr("הסרת רקע"), tr("לתמונה של אובייקט. כבוי: הצורה היא הקווים הכהים בציור"), flatBg) { flatBg = it }
+                    Text(tr("גודל: %.0f מ״מ").format(cookieMm), color = C.Text, fontSize = 14.sp)
                     Slider(cookieMm, { cookieMm = (it / 5).toInt() * 5f }, valueRange = 40f..140f, colors = sliderColors())
-                    Text("להב 0.9 מ״מ בגובה 14 מ״מ, עם שפה רחבה למטה לאחיזה.", color = C.Sub, fontSize = 12.sp)
+                    Text(tr("להב 0.9 מ״מ בגובה 14 מ״מ, עם שפה רחבה למטה לאחיזה."), color = C.Sub, fontSize = 12.sp)
                 }
-                Creations.Kind.STAMP -> Section(title = "אפשרויות") {
-                    Text("אורך: %.0f מ״מ".format(stampMm), color = C.Text, fontSize = 14.sp)
+                Creations.Kind.STAMP -> Section(title = tr("אפשרויות")) {
+                    Text(tr("אורך: %.0f מ״מ").format(stampMm), color = C.Text, fontSize = 14.sp)
                     Slider(stampMm, { stampMm = (it / 5).toInt() * 5f }, valueRange = 25f..120f, colors = sliderColors())
                 }
                 Creations.Kind.QR -> {}
             }
-            Text(if ((kind.needsImage && kind != Creations.Kind.COOKIE && !(kind == Creations.Kind.LITHOPHANE && lamp)) || kind == Creations.Kind.QR) "גודל: 100 מ״מ בצלע הארוכה. אחרי היצירה תמצא ייצוא 3MF/STL להדפסה."
-                else "המודל נשמר בגודל האמיתי שבחרת. אחרי היצירה תמצא ייצוא 3MF/STL להדפסה.", color = C.Faint, fontSize = 12.sp)
+            Text(if ((kind.needsImage && kind != Creations.Kind.COOKIE && !(kind == Creations.Kind.LITHOPHANE && lamp)) || kind == Creations.Kind.QR) tr("גודל: 100 מ״מ בצלע הארוכה. אחרי היצירה תמצא ייצוא 3MF/STL להדפסה.")
+                else tr("המודל נשמר בגודל האמיתי שבחרת. אחרי היצירה תמצא ייצוא 3MF/STL להדפסה."), color = C.Faint, fontSize = 12.sp)
             Creations.error?.let { Text(it, color = C.Red, fontSize = 13.sp) }
             Spacer(Modifier.height(4.dp))
         }
@@ -228,7 +229,7 @@ fun ExtraScreen() {
                 Creations.Kind.STAMP -> if (stampImage) image != null else text.isNotBlank()
                 else -> image != null
             }
-            GradientButton("צור ${kind.label}", Modifier.fillMaxWidth(), sparkles = true, enabled = ready && busy == null) {
+            GradientButton(tr("צור {0}", kind.label), Modifier.fillMaxWidth(), sparkles = true, enabled = ready && busy == null) {
                 val size = when (kind) {
                     Creations.Kind.NAME -> letterMm
                     Creations.Kind.COOKIE -> cookieMm
@@ -252,8 +253,8 @@ private fun ExtraNeeded(e: Extras.Extra) {
 /** Settings section: the optional enhancement models, each downloaded only on request. */
 @Composable
 fun ExtrasSection() {
-    Section(title = "שיפורים להורדה (לא חובה)") {
-        Text("מודלים נוספים שמשפרים את התוצאה. כל אחד יורד רק אם תבחר בו, ואפשר למחוק בכל רגע.", color = C.Sub, fontSize = 12.sp)
+    Section(title = tr("שיפורים להורדה (לא חובה)")) {
+        Text(tr("מודלים נוספים שמשפרים את התוצאה. כל אחד יורד רק אם תבחר בו, ואפשר למחוק בכל רגע."), color = C.Sub, fontSize = 12.sp)
         for (e in Extras.all) ExtraRow(e, rememberModelStatus(e.pack))
     }
 }
@@ -280,45 +281,45 @@ fun ModelPacksSection() {
         if (tree == null) return@rememberLauncherForActivityResult
         err = null
         scope.launch {
-            importing = "בודק את התיקייה…"
+            importing = tr("בודק את התיקייה…")
             runCatching { ModelStore.importFrom(ctx, pack, tree) { importing = it } }
                 .onSuccess { bad ->
-                    err = if (bad.isEmpty()) null else "חסרים או לא שלמים ${bad.size} קבצים: ${bad.take(4).joinToString()}" +
+                    err = if (bad.isEmpty()) null else tr("חסרים או לא שלמים {0} קבצים: {1}", bad.size, bad.take(4).joinToString()) +
                         if (bad.size > 4) "…" else ""
                 }
-                .onFailure { CrashLog.error("TripoSG import", it); err = "הייבוא נכשל: ${it.message}" }
+                .onFailure { CrashLog.error("TripoSG import", it); err = tr("הייבוא נכשל: {0}", it.message) }
             importing = null
         }
     }
-    Section(title = "מודלים נוספים") {
-        Text("אחרי ההורדה אפשר לבחור במסך היצירה איזה מודל יבנה את התלת־ממד.", color = C.Sub, fontSize = 12.sp)
+    Section(title = tr("מודלים נוספים")) {
+        Text(tr("אחרי ההורדה אפשר לבחור במסך היצירה איזה מודל יבנה את התלת־ממד."), color = C.Sub, fontSize = 12.sp)
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color(0x14FFFFFF)).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconTile(Icons.Rounded.Memory, 36.dp, C.Accent)
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("TripoSG · ניסיוני", color = C.Text, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                    Text("צורה מדויקת וחדה יותר מ-TripoSR, בלי צבע. רץ על ה-NPU, כ-2 דקות למודל.", color = C.Sub, fontSize = 12.sp)
+                    Text(tr("TripoSG · ניסיוני"), color = C.Text, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    Text(tr("צורה מדויקת וחדה יותר מ-TripoSR, בלי צבע. רץ על ה-NPU, כ-2 דקות למודל."), color = C.Sub, fontSize = 12.sp)
                 }
             }
             when (status) {
                 ModelStore.Status.Ready -> {
-                    SoftButton(if (testing) "בודק טעינה…" else "בדיקת טעינה ל-NPU", Modifier.fillMaxWidth(), enabled = !testing) {
+                    SoftButton(if (testing) tr("בודק טעינה…") else tr("בדיקת טעינה ל-NPU"), Modifier.fillMaxWidth(), enabled = !testing) {
                         testing = true
                         scope.launch {
                             testResult = withContext(Dispatchers.Default) {
                                 runCatching { com.triposr.mobile.SgEngine(ctx).use { it.loadTest() } }
-                                    .getOrElse { "הבדיקה נכשלה: ${it.message}" }
+                                    .getOrElse { tr("הבדיקה נכשלה: {0}", it.message) }
                             }
                             testing = false
                         }
                     }
-                    testResult?.let { Text(it + "\n(נשמר גם בדוח המלא)", color = C.Sub, fontSize = 11.sp) }
+                    testResult?.let { Text(it + tr("\n(נשמר גם בדוח המלא)"), color = C.Sub, fontSize = 11.sp) }
                     when (probe) {
-                        ModelStore.Status.Ready -> Text("קבצי הבדיקה מותקנים ונכללים בבדיקה", color = C.Faint, fontSize = 11.sp)
+                        ModelStore.Status.Ready -> Text(tr("קבצי הבדיקה מותקנים ונכללים בבדיקה"), color = C.Faint, fontSize = 11.sp)
                         is ModelStore.Status.Downloading -> GlowBar(probe.done.toFloat() / probe.total, Modifier.fillMaxWidth(), C.Primary)
-                        else -> SoftButton("הורד קבצי בדיקה" + (probeSize?.let { " · ${it shr 20} MB" } ?: ""), Modifier.fillMaxWidth(),
+                        else -> SoftButton(tr("הורד קבצי בדיקה") + (probeSize?.let { " · ${it shr 20} MB" } ?: ""), Modifier.fillMaxWidth(),
                             enabled = probeSize != null) {
                             scope.launch {
                                 runCatching { ModelStore.startDownload(ctx, ModelStore.SG_PROBE) }
@@ -326,21 +327,21 @@ fun ModelPacksSection() {
                             }
                         }
                     }
-                    SoftButton("מחק · ${ModelStore.sizeOnDisk(ctx, pack) shr 20} MB", Modifier.fillMaxWidth(), Icons.Rounded.Delete, color = C.Red) {
+                    SoftButton(tr("מחק · {0} MB", ModelStore.sizeOnDisk(ctx, pack) shr 20), Modifier.fillMaxWidth(), Icons.Rounded.Delete, color = C.Red) {
                         if (Settings.generator(ctx) == Generator.TRIPOSG) Settings.setGenerator(ctx, Generator.TRIPOSR)
                         ModelStore.delete(ctx, pack)
                     }
                 }
                 is ModelStore.Status.Downloading -> {
                     GlowBar(status.done.toFloat() / status.total, Modifier.fillMaxWidth(), C.Primary)
-                    SoftButton("בטל", Modifier.fillMaxWidth()) { ModelStore.cancel(ctx, pack) }
+                    SoftButton(tr("בטל"), Modifier.fillMaxWidth()) { ModelStore.cancel(ctx, pack) }
                 }
                 else -> if (importing != null) {
                     Text(importing!!, color = C.Sub, fontSize = 12.sp)
                 } else {
                     if (status is ModelStore.Status.Failed) Text(status.message, color = C.Red, fontSize = 12.sp)
-                    if (size == null) Text("החבילה עוד לא פורסמה לשבב הזה", color = C.Faint, fontSize = 12.sp)
-                    SoftButton("הורד" + (size?.let { " · ${it shr 20} MB" } ?: ""), Modifier.fillMaxWidth(),
+                    if (size == null) Text(tr("החבילה עוד לא פורסמה לשבב הזה"), color = C.Faint, fontSize = 12.sp)
+                    SoftButton(tr("הורד") + (size?.let { " · ${it shr 20} MB" } ?: ""), Modifier.fillMaxWidth(),
                         Icons.Rounded.CloudDownload, enabled = size != null) {
                         err = null
                         scope.launch {
@@ -348,20 +349,20 @@ fun ModelPacksSection() {
                                 .onFailure { CrashLog.error("TripoSG download", it); err = it.message }
                         }
                     }
-                    Text("מעדיף להוריד עם אפליקציית הורדות (למשל 1DM)? העתק את הקישורים, הורד את כל הקבצים לתיקייה אחת ובחר אותה.",
+                    Text(tr("מעדיף להוריד עם אפליקציית הורדות (למשל 1DM)? העתק את הקישורים, הורד את כל הקבצים לתיקייה אחת ובחר אותה."),
                         color = C.Faint, fontSize = 12.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SoftButton("העתק קישורים", Modifier.weight(1f)) {
+                        SoftButton(tr("העתק קישורים"), Modifier.weight(1f)) {
                             val cm = ctx.getSystemService(android.content.ClipboardManager::class.java)
                             cm.setPrimaryClip(android.content.ClipData.newPlainText("TripoSG", ModelStore.links(pack).joinToString("\n")))
-                            android.widget.Toast.makeText(ctx, "${pack.files().size} קישורים הועתקו", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(ctx, tr("{0} קישורים הועתקו", pack.files().size), android.widget.Toast.LENGTH_SHORT).show()
                         }
-                        SoftButton("ייבוא מתיקייה", Modifier.weight(1f)) { pickFolder.launch(null) }
+                        SoftButton(tr("ייבוא מתיקייה"), Modifier.weight(1f)) { pickFolder.launch(null) }
                     }
                 }
             }
             err?.let { Text(it, color = C.Red, fontSize = 12.sp) }
-            Text("רישיון: MIT (VAST-AI-Research). חלקים מקוד המודל מבוססים על Tencent Hunyuan.", color = C.Faint, fontSize = 11.sp)
+            Text(tr("רישיון: MIT (VAST-AI-Research). חלקים מקוד המודל מבוססים על Tencent Hunyuan."), color = C.Faint, fontSize = 11.sp)
         }
     }
 }
@@ -391,18 +392,18 @@ private fun ExtraRow(e: Extras.Extra, status: ModelStore.Status) {
         }
         when (status) {
             ModelStore.Status.Ready -> {
-                if (e.usesToggle) ToggleRow("פעיל", null, active) { active = it; Extras.setActive(ctx, e, it) }
-                SoftButton("מחק · ${ModelStore.sizeOnDisk(ctx, e.pack) shr 20} MB", Modifier.fillMaxWidth(), Icons.Rounded.Delete, color = C.Red) {
+                if (e.usesToggle) ToggleRow(tr("פעיל"), null, active) { active = it; Extras.setActive(ctx, e, it) }
+                SoftButton(tr("מחק · {0} MB", ModelStore.sizeOnDisk(ctx, e.pack) shr 20), Modifier.fillMaxWidth(), Icons.Rounded.Delete, color = C.Red) {
                     Enhance.close(); ModelStore.delete(ctx, e.pack)
                 }
             }
             is ModelStore.Status.Downloading -> {
                 GlowBar(status.done.toFloat() / status.total, Modifier.fillMaxWidth(), C.Primary)
-                SoftButton("בטל", Modifier.fillMaxWidth()) { ModelStore.cancel(ctx, e.pack) }
+                SoftButton(tr("בטל"), Modifier.fillMaxWidth()) { ModelStore.cancel(ctx, e.pack) }
             }
             else -> {
                 if (status is ModelStore.Status.Failed) Text(status.message, color = C.Red, fontSize = 12.sp)
-                SoftButton("הורד" + (size?.let { " · ${maxOf(1, it shr 20)} MB" } ?: ""), Modifier.fillMaxWidth(),
+                SoftButton(tr("הורד") + (size?.let { " · ${maxOf(1, it shr 20)} MB" } ?: ""), Modifier.fillMaxWidth(),
                     Icons.Rounded.CloudDownload, enabled = size != null) {
                     err = null
                     scope.launch {
@@ -413,6 +414,6 @@ private fun ExtraRow(e: Extras.Extra, status: ModelStore.Status) {
             }
         }
         err?.let { Text(it, color = C.Red, fontSize = 12.sp) }
-        Text("רישיון: ${e.license}", color = C.Faint, fontSize = 11.sp, textAlign = TextAlign.Start)
+        Text(tr("רישיון: {0}", e.license), color = C.Faint, fontSize = 11.sp, textAlign = TextAlign.Start)
     }
 }

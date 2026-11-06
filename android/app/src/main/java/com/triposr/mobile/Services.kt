@@ -16,12 +16,12 @@ import java.net.URL
 private const val REPO = "israel0548502744-blip/makeo3d-public"
 
 private suspend fun githubJson(path: String): JSONObject = withContext(Dispatchers.IO) {
-    val conn = URL("https://api.github.com/repos/$REPO/$path").openConnection() as HttpURLConnection
+    val conn = URL("https://api.github.com/repos/${REPO}/${path}").openConnection() as HttpURLConnection
     conn.setRequestProperty("Accept", "application/vnd.github+json")
     conn.connectTimeout = 15000
     conn.readTimeout = 15000
     try {
-        if (conn.responseCode != 200) throw IllegalStateException("GitHub API ${conn.responseCode} for $path")
+        if (conn.responseCode != 200) throw IllegalStateException("GitHub API ${conn.responseCode} for ${path}")
         JSONObject(conn.inputStream.bufferedReader().readText())
     } finally {
         conn.disconnect()
@@ -104,18 +104,18 @@ object Settings {
 }
 
 enum class Quality(val label: String, val resolution: Int, val hint: String) {
-    LOW("נמוכה", 128, "מהיר, כמה שניות"),
-    MEDIUM("בינונית", 192, "מאוזן"),
-    HIGH("גבוהה", 256, "מפורט, איטי יותר"),
+    LOW(tr("נמוכה"), 128, tr("מהיר, כמה שניות")),
+    MEDIUM(tr("בינונית"), 192, tr("מאוזן")),
+    HIGH(tr("גבוהה"), 256, tr("מפורט, איטי יותר")),
     /** Twice the samples of HIGH. Surfaces get a little smoother; detail is capped by the model itself. */
-    MAX("מקסימלית", 320, "משטח חלק יותר, פי 2 זמן. מומלץ עם NPU/GPU"),
+    MAX(tr("מקסימלית"), 320, tr("משטח חלק יותר, פי 2 זמן. מומלץ עם NPU/GPU")),
 }
 
 /** The image-to-3D models the user can choose from; each needs its pack downloaded. */
 enum class Generator(val label: String, val hint: String, val stages: List<Stage>) {
-    TRIPOSR("TripoSR", "מהיר, עם צבעים וטקסטורה",
+    TRIPOSR("TripoSR", tr("מהיר, עם צבעים וטקסטורה"),
         listOf(Stage.LOAD, Stage.SEGMENT, Stage.ENCODE, Stage.FIELD, Stage.SURFACE, Stage.COLOR, Stage.TEXTURE)),
-    TRIPOSG("TripoSG", "צורה מדויקת יותר, בלי צבע. ניסיוני, NPU בלבד",
+    TRIPOSG("TripoSG", tr("צורה מדויקת יותר, בלי צבע. ניסיוני, NPU בלבד"),
         listOf(Stage.SEGMENT, Stage.ENCODE, Stage.DENOISE, Stage.FIELD, Stage.SURFACE, Stage.COLOR));
 
     val pack: Pack get() = when (this) {
@@ -145,10 +145,10 @@ class Pack(val key: String, val title: String, val tag: String = ModelStore.RELE
 object ModelStore {
     const val RELEASE_TAG = "models-v1"
     val FILES = listOf(TripoEngine.ENCODER, TripoEngine.DECODER)
-    val MAIN = Pack("models", "TripoSR — מודל תלת־ממד") { FILES }
-    val NPU = Pack("npu", "TripoSR — חבילת NPU") { NpuPack.files() }
+    val MAIN = Pack("models", tr("TripoSR — מודל תלת־ממד")) { FILES }
+    val NPU = Pack("npu", tr("TripoSR — חבילת NPU")) { NpuPack.files() }
     /** Smaller variants of the first TripoSG part, only to find what fits in the NPU's memory. */
-    val SG_PROBE = Pack("sg_probe", "TripoSG — קבצי בדיקה", "triposg-probe") {
+    val SG_PROBE = Pack("sg_probe", tr("TripoSG — קבצי בדיקה"), "triposg-probe") {
         NpuPack.chip()?.let { c -> SgEngine.PROBES.flatMap { listOf("sg_probe_${it}_${c}_ctx.onnx", "sg_probe_${it}_${c}_ctx_qnn.bin") } } ?: emptyList()
     }
     private val TRIPOSG_V3 = Pack("triposg_v3", "TripoSG", "triposg-v3") { NpuPack.chip()?.let { SgEngine.files(it) } ?: emptyList() }
@@ -157,7 +157,7 @@ object ModelStore {
      * 16-bit activations, a third of the float size; shapes 99.4-99.7% the same (sg_eval.py int8).
      * DINOv2 and the VAE are the same files as in v3, so a finished v3 download keeps them.
      */
-    val TRIPOSG = Pack("triposg_v4", "TripoSG — מודל צורה מדויק", "triposg-v4-int8", reuse = TRIPOSG_V3) {
+    val TRIPOSG = Pack("triposg_v4", tr("TripoSG — מודל צורה מדויק"), "triposg-v4-int8", reuse = TRIPOSG_V3) {
         NpuPack.chip()?.let { SgEngine.files(it) } ?: emptyList()
     }
 
@@ -181,13 +181,13 @@ object ModelStore {
 
     private fun sizesMatch(ctx: Context, pack: Pack) = pack.files().all { name ->
         val f = file(ctx, name)
-        f.exists() && f.length() > 0 && f.length() == prefs(ctx, pack).getLong("size_$name", -1)
+        f.exists() && f.length() > 0 && f.length() == prefs(ctx, pack).getLong("size_${name}", -1)
     }
 
     /** Total size of the pack in the release, or null if the release doesn't have all its files. */
     suspend fun availableSize(pack: Pack): Long? {
         val assets = runCatching { githubJson("releases/tags/${pack.tag}").assets().associateBy { it.name } }
-            .onFailure { Health.report("הורדת מודלים", "${pack.title}: לא הצלחתי לקרוא את רשימת הקבצים: $it", Health.Level.WARNING) }
+            .onFailure { Health.report(tr("הורדת מודלים"), tr("{0}: לא הצלחתי לקרוא את רשימת הקבצים: {1}", pack.title, it), Health.Level.WARNING) }
             .getOrThrow()
         val files = pack.files()
         val missing = files.filter { it !in assets }
@@ -206,9 +206,9 @@ object ModelStore {
         val edit = prefs(ctx, pack).edit()
         var kept = 0
         for (name in pack.files()) {
-            val asset = assets[name] ?: throw IllegalStateException("$name missing from release ${pack.tag}")
+            val asset = assets[name] ?: throw IllegalStateException("${name} missing from release ${pack.tag}")
             if (reusable(ctx, pack, name, asset.size)) {
-                edit.putLong("size_$name", asset.size).remove("id_$name")
+                edit.putLong("size_${name}", asset.size).remove("id_${name}")
                 kept++
                 continue
             }
@@ -218,38 +218,38 @@ object ModelStore {
                 .setDescription(name)
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 .setDestinationInExternalFilesDir(ctx, "models", name)
-            edit.putLong("size_$name", asset.size).putLong("id_$name", dm.enqueue(req))
+            edit.putLong("size_${name}", asset.size).putLong("id_${name}", dm.enqueue(req))
         }
         edit.putBoolean("complete", kept == pack.files().size).apply()
-        CrashLog.log("Download ${pack.key} started: ${pack.files().sumOf { assets[it]?.size ?: 0 } shr 20} MB, $kept files kept from ${pack.reuse?.key}")
+        CrashLog.log("Download ${pack.key} started: ${pack.files().sumOf { assets[it]?.size ?: 0 } shr 20} MB, ${kept} files kept from ${pack.reuse?.key}")
     }
 
     /** [name] is already on disk from a finished download of the pack this one replaces, with the same size. */
     private fun reusable(ctx: Context, pack: Pack, name: String, size: Long?): Boolean {
         val old = pack.reuse?.takeIf { prefs(ctx, it).getBoolean("complete", false) } ?: return false
-        return size != null && size == prefs(ctx, old).getLong("size_$name", -1) && file(ctx, name).length() == size
+        return size != null && size == prefs(ctx, old).getLong("size_${name}", -1) && file(ctx, name).length() == size
     }
 
     fun status(ctx: Context, pack: Pack = MAIN): Status {
         if (isReady(ctx, pack)) return Status.Ready
         val files = pack.files()
         val dm = ctx.getSystemService(DownloadManager::class.java)
-        val ids = files.map { prefs(ctx, pack).getLong("id_$it", -1) }.filter { it >= 0 }
+        val ids = files.map { prefs(ctx, pack).getLong("id_${it}", -1) }.filter { it >= 0 }
         if (ids.isEmpty()) return Status.Missing
         var done = 0L
-        var total = files.sumOf { prefs(ctx, pack).getLong("size_$it", 0) }
+        var total = files.sumOf { prefs(ctx, pack).getLong("size_${it}", 0) }
         var running = false
         var succeeded = 0
         dm.query(DownloadManager.Query().setFilterById(*ids.toLongArray())).use { c ->
             if (c.count == 0) return Status.Missing
-            if (c.count < ids.size) return Status.Failed("ההורדה הופסקה, נסה שוב")
+            if (c.count < ids.size) return Status.Failed(tr("ההורדה הופסקה, נסה שוב"))
             while (c.moveToNext()) {
                 val st = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
                 done += c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
                 when (st) {
                     DownloadManager.STATUS_FAILED -> {
                         val reason = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
-                        return Status.Failed("ההורדה נכשלה (קוד $reason)")
+                        return Status.Failed(tr("ההורדה נכשלה (קוד {0})", reason))
                     }
                     DownloadManager.STATUS_SUCCESSFUL -> succeeded++
                     else -> running = true
@@ -258,14 +258,14 @@ object ModelStore {
         }
         if (total <= 0) total = 1
         if (running || succeeded < ids.size) return Status.Downloading(done, total)
-        if (!sizesMatch(ctx, pack)) return Status.Failed("הקובץ שהורד לא תקין, נסה שוב")
+        if (!sizesMatch(ctx, pack)) return Status.Failed(tr("הקובץ שהורד לא תקין, נסה שוב"))
         prefs(ctx, pack).edit().putBoolean("complete", true).apply()
         CrashLog.log("Download ${pack.key} complete")
         return Status.Ready
     }
 
     /** Direct links of the pack's files, for downloading them with another app. */
-    fun links(pack: Pack) = pack.files().map { "https://github.com/$REPO/releases/download/${pack.tag}/$it" }
+    fun links(pack: Pack) = pack.files().map { "https://github.com/${REPO}/releases/download/${pack.tag}/${it}" }
 
     /**
      * Installs a pack from files the user downloaded themselves (e.g. with a download manager
@@ -298,16 +298,16 @@ object ModelStore {
         val edit = prefs(ctx, pack).edit().putBoolean("complete", false)
         edit.apply()
         val files = pack.files() - keep
-        keep.forEach { edit.putLong("size_$it", expected!!.getValue(it)) }
+        keep.forEach { edit.putLong("size_${it}", expected!!.getValue(it)) }
         files.forEachIndexed { i, name ->
-            progress("מעתיק ${i + 1}/${files.size}: $name")
+            progress(tr("מעתיק {0}/{1}: {2}", i + 1, files.size, name))
             val (uri, size) = found.getValue(name)
             cr.openInputStream(uri)!!.use { input -> file(ctx, name).outputStream().use { input.copyTo(it, 1 shl 20) } }
             if (file(ctx, name).length() != size) {
                 file(ctx, name).delete()
                 return@withContext listOf(name)
             }
-            edit.putLong("size_$name", size)
+            edit.putLong("size_${name}", size)
         }
         edit.putBoolean("complete", true).apply()
         CrashLog.log("Import ${pack.key} complete")
@@ -319,10 +319,10 @@ object ModelStore {
         val ready = isReady(ctx, pack)
         val edit = prefs(ctx, pack).edit()
         for (name in pack.files()) {
-            val id = prefs(ctx, pack).getLong("id_$name", -1)
+            val id = prefs(ctx, pack).getLong("id_${name}", -1)
             // remove() also deletes the file, so only for unfinished downloads.
             if (id >= 0 && !ready) dm.remove(id)
-            edit.remove("id_$name")
+            edit.remove("id_${name}")
         }
         edit.apply()
     }
@@ -339,7 +339,7 @@ object ModelStore {
     fun describe(ctx: Context) = buildString {
         for (pack in listOf(MAIN, NPU, TRIPOSG) + Extras.all.map { it.pack }) {
             append("${pack.key}: ${if (isReady(ctx, pack)) "ready" else "not ready"}")
-            pack.files().forEach { append(", $it=${file(ctx, it).length() shr 20}MB/${prefs(ctx, pack).getLong("size_$it", -1) shr 20}MB") }
+            pack.files().forEach { append(", ${it}=${file(ctx, it).length() shr 20}MB/${prefs(ctx, pack).getLong("size_${it}", -1) shr 20}MB") }
             append("; ")
         }
     }
@@ -354,14 +354,14 @@ object Extras {
 
     class Extra(val pack: Pack, val title: String, val detail: String, val license: String, val usesToggle: Boolean)
 
-    val UPSCALE = Extra(Pack("x_upscale", "שיפור תמונה (Real-ESRGAN)", TAG) { listOf("realesrgan_x4v3.onnx") },
-        "שיפור תמונה", "מחדד ומגדיל פי 4 תמונות קטנות או מטושטשות לפני היצירה", "BSD-3-Clause · Xintao Wang", true)
-    val SEGMENT = Extra(Pack("x_isnet", "הסרת רקע מדויקת (ISNet)", TAG) { listOf("isnet_general.onnx") },
-        "הסרת רקע מדויקת", "שוליים נקיים וחלקים דקים, במקום המודל הקטן המובנה", "Apache-2.0 · Xuebin Qin (DIS)", true)
-    val TAP = Extra(Pack("x_sam", "בחירה בנגיעה (MobileSAM)", TAG) { listOf("mobilesam_encoder.onnx", "mobilesam_decoder.onnx") },
-        "בחירת אובייקט בנגיעה", "נוגעים באובייקט בתמונה והוא נבחר, גם כשיש כמה אובייקטים", "Apache-2.0 · Chaoning Zhang (MobileSAM)", false)
-    val DEPTH = Extra(Pack("x_depth", "עומק (Depth Anything V2 Small)", TAG) { listOf("depth_anything_v2s.onnx") },
-        "מפת עומק לתבליט", "מאפשר ליצור תבליט תלת־ממדי מתמונה", "Apache-2.0 · Depth Anything V2 Small", false)
+    val UPSCALE = Extra(Pack("x_upscale", tr("שיפור תמונה (Real-ESRGAN)"), TAG) { listOf("realesrgan_x4v3.onnx") },
+        tr("שיפור תמונה"), tr("מחדד ומגדיל פי 4 תמונות קטנות או מטושטשות לפני היצירה"), "BSD-3-Clause · Xintao Wang", true)
+    val SEGMENT = Extra(Pack("x_isnet", tr("הסרת רקע מדויקת (ISNet)"), TAG) { listOf("isnet_general.onnx") },
+        tr("הסרת רקע מדויקת"), tr("שוליים נקיים וחלקים דקים, במקום המודל הקטן המובנה"), "Apache-2.0 · Xuebin Qin (DIS)", true)
+    val TAP = Extra(Pack("x_sam", tr("בחירה בנגיעה (MobileSAM)"), TAG) { listOf("mobilesam_encoder.onnx", "mobilesam_decoder.onnx") },
+        tr("בחירת אובייקט בנגיעה"), tr("נוגעים באובייקט בתמונה והוא נבחר, גם כשיש כמה אובייקטים"), "Apache-2.0 · Chaoning Zhang (MobileSAM)", false)
+    val DEPTH = Extra(Pack("x_depth", tr("עומק (Depth Anything V2 Small)"), TAG) { listOf("depth_anything_v2s.onnx") },
+        tr("מפת עומק לתבליט"), tr("מאפשר ליצור תבליט תלת־ממדי מתמונה"), "Apache-2.0 · Depth Anything V2 Small", false)
     val all = listOf(UPSCALE, SEGMENT, TAP, DEPTH)
 
     fun ready(ctx: Context, e: Extra) = ModelStore.isReady(ctx, e.pack)
@@ -400,7 +400,7 @@ object RemoteConfig {
     data class Retired(val message: String, val url: String)
 
     suspend fun retired(): Retired? = withContext(Dispatchers.IO) {
-        val conn = URL("https://raw.githubusercontent.com/$REPO/main/config.json").openConnection() as HttpURLConnection
+        val conn = URL("https://raw.githubusercontent.com/${REPO}/main/config.json").openConnection() as HttpURLConnection
         conn.connectTimeout = 15000
         conn.readTimeout = 15000
         val json = try {
@@ -410,7 +410,7 @@ object RemoteConfig {
             conn.disconnect()
         }
         if (BuildConfig.VERSION_CODE >= json.optInt(if (BuildConfig.STORE) "min_build_store" else "min_build", 0)) null
-        else Retired(json.optString("message").ifBlank { "הגרסה הזו כבר לא נתמכת. כדי להמשיך, יש להתקין את הגרסה העדכנית." },
+        else Retired(json.optString("message").ifBlank { tr("הגרסה הזו כבר לא נתמכת. כדי להמשיך, יש להתקין את הגרסה העדכנית.") },
             json.optString("url"))
     }
 }
@@ -433,7 +433,7 @@ object Updater {
     fun download(ctx: Context, u: Update): Long {
         ctx.getExternalFilesDir("updates")?.listFiles()?.forEach { it.delete() }
         val req = DownloadManager.Request(Uri.parse(u.url))
-            .setTitle("Makeo 3D — עדכון ${u.build}")
+            .setTitle(tr("Makeo 3D — עדכון {0}", u.build))
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
             .setDestinationInExternalFilesDir(ctx, "updates", apkFile(ctx, u).name)
         return ctx.getSystemService(DownloadManager::class.java).enqueue(req)

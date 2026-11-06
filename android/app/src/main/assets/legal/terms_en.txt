@@ -1,0 +1,50 @@
+Terms of use
+Last updated: October 25, 2026
+
+The Hebrew version of these terms is the binding one; this English text is a translation.
+
+1. General
+The Makeo 3D app ("the app") lets you create 3D models and print crafts (keychains, cookie cutters, QR plates, lithophanes, stamps and more) from pictures and text, right on the phone. On first launch you are shown the main terms and a link to the full text, and use starts only after you tap "I agree". If you do not agree to the terms, do not use the app.
+
+2. The content you create is your responsibility
+- You are responsible for every picture, text, logo or character you put into the app, and for every model or object you create, print, share or sell.
+- Use only pictures and content you have the right to use: pictures you took yourself, content you have permission for, or content that is free to use.
+- Characters, symbols, logos and trade names (for example characters from Disney, Marvel, Pokémon, sports teams or brands) are protected by copyright and trademarks. Creating, printing and especially selling such objects without the right holder's permission may break the law. This is solely your responsibility.
+- Do not use the app to create illegal, offensive or misleading content, or content that harms another person's privacy (for example a model of a person from a picture taken without their knowledge).
+- Do not use the app to create weapons, weapon parts or dangerous objects.
+- The app grants no license or right to use the characters, logos, brands or works of others. Being able to create a model of a character is not permission to use it.
+- We may limit or block uses that break these terms, as far as is technically possible.
+
+3. The results
+- The models are made by artificial intelligence and may be inaccurate, partial or different from the original. Check every model before printing.
+- Sizes, thicknesses and the print check are estimates only. The app is not responsible for failed prints, wasted material or damage to a printer.
+- Objects that touch food (cookie cutters, stamps): home printing leaves grooves where bacteria can collect. Use a food-safe material, clean thoroughly and use them only briefly. This is your responsibility.
+- The files the app creates are not a safety or regulatory approval for any printed product, nor for food contact. Safety depends on the printing material, the printer, the printing process and cleaning.
+- A Wi‑Fi QR plate contains the password inside the code: anyone who scans it can see it.
+
+4. Ownership
+- The models and files you create belong to you, subject to third-party rights in the content you put in (see section 2).
+- The app itself, its design and its code belong to the developer. Open-source components and third-party models in the app are subject to their own licenses (Settings → Legal → Open-source licenses).
+- You may not copy, decompile or redistribute the app or the model files it downloads, except as the licenses of the open-source components expressly allow.
+
+5. Downloaded models
+Some models are downloaded from the internet after installation. The download may be large (up to several GB) and is best done on Wi‑Fi. Some models may not be available in every country.
+
+6. Limitation of liability
+The app is provided "AS IS", with no promise that it will work on every device, without faults or without interruption. To the fullest extent the law allows, the developer will not be liable for direct or indirect damage caused by using the app or the objects made with it.
+
+7. Reporting an infringement
+If you believe content created or shared with the app infringes your rights, contact us at the e-mail in section 10 and include:
+- a description of the work and where it was published (a link or screenshot);
+- the right you believe is infringed and who owns it;
+- your contact details and a statement that the information is correct to the best of your knowledge.
+We will confirm receipt within 7 days and reply on the merits within 14 days. The app does not store or publish users' creations, so we cannot remove a creation published elsewhere: in that case we will refer you to the place where it was published. If the report concerns content we provide (for example a sample, template or marketing material), we will remove it in the next update.
+
+8. Changes
+These terms may be updated. We will update the date at the top. After a material change, the app will show you the terms again and ask for your consent before you continue.
+
+9. Law and jurisdiction
+These terms are governed by the laws of the State of Israel, and the competent courts in Israel have exclusive jurisdiction, subject to consumer rights that cannot be waived under the law of the country where you live.
+
+10. Contact
+israel0546631352@gmail.com

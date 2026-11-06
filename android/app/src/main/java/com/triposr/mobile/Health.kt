@@ -19,10 +19,10 @@ import java.util.Locale
  * guessing which part failed.
  */
 object Health {
-    enum class Level(val label: String) { ERROR("שגיאה"), WARNING("אזהרה") }
+    enum class Level(val label: String) { ERROR(tr("שגיאה")), WARNING(tr("אזהרה")) }
 
     class Problem(val time: String, val level: Level, val area: String, val message: String) {
-        override fun toString() = "$time [${level.name}] $area: $message"
+        override fun toString() = "${time} [${level.name}] ${area}: ${message}"
     }
 
     private const val MAX = 60
@@ -63,20 +63,20 @@ object Health {
         // Robolectric (screenshot tests) has no native libraries or real storage.
         if (Build.FINGERPRINT == "robolectric") return
         val started = System.currentTimeMillis()
-        check("ספריות מערכת") { nativeLibraries(ctx) }
+        check(tr("ספריות מערכת")) { nativeLibraries(ctx) }
         check("ONNX Runtime") { ai.onnxruntime.OrtEnvironment.getEnvironment() }
-        check("אחסון") { storage(ctx) }
-        check("מודלים") { models(ctx) }
-        check("מעבדים") { processors(ctx) }
-        check("קבצי האפליקציה") { assets(ctx) }
-        check("מצב סוללה וחום") { power(ctx) }
-        check("הרשאות") { permissions(ctx) }
+        check(tr("אחסון")) { storage(ctx) }
+        check(tr("מודלים")) { models(ctx) }
+        check(tr("מעבדים")) { processors(ctx) }
+        check(tr("קבצי האפליקציה")) { assets(ctx) }
+        check(tr("מצב סוללה וחום")) { power(ctx) }
+        check(tr("הרשאות")) { permissions(ctx) }
         CrashLog.log("Startup checks done in ${System.currentTimeMillis() - started} ms: " +
             "${problems().size} problem(s)")
     }
 
     private inline fun check(area: String, block: () -> Unit) {
-        runCatching(block).onFailure { report(area, "הבדיקה עצמה נכשלה: $it") }
+        runCatching(block).onFailure { report(area, tr("הבדיקה עצמה נכשלה: {0}", it)) }
     }
 
     private fun nativeLibraries(ctx: Context) {
@@ -84,18 +84,18 @@ object Health {
         val required = mutableListOf("libonnxruntime.so")
         if (Capabilities.isSnapdragon()) required += listOf("libQnnHtp.so", "libQnnGpu.so", "libQnnSystem.so")
         val missing = required.filter { !File(dir, it).exists() }
-        if (missing.isNotEmpty()) report("ספריות מערכת", "חסרות: ${missing.joinToString()} (ב-${dir.path})")
+        if (missing.isNotEmpty()) report(tr("ספריות מערכת"), tr("חסרות: {0} (ב-{1})", missing.joinToString(), dir.path))
         if (Capabilities.isSnapdragon() && dir.listFiles()?.none { it.name.startsWith("libQnnHtpV") && it.name.endsWith("Skel.so") } == true) {
-            report("ספריות מערכת", "לא נמצאה ספריית Skel של ה-NPU (libQnnHtpV*Skel.so)")
+            report(tr("ספריות מערכת"), tr("לא נמצאה ספריית Skel של ה-NPU (libQnnHtpV*Skel.so)"))
         }
     }
 
     private fun storage(ctx: Context) {
-        val dir = ctx.getExternalFilesDir(null) ?: return report("אחסון", "אין גישה לתיקיית הקבצים של האפליקציה")
+        val dir = ctx.getExternalFilesDir(null) ?: return report(tr("אחסון"), tr("אין גישה לתיקיית הקבצים של האפליקציה"))
         val freeMb = StatFs(dir.path).availableBytes shr 20
         when {
-            freeMb < 500 -> report("אחסון", "נשארו רק $freeMb MB פנויים: יצירה ושמירת מודלים עלולות להיכשל")
-            freeMb < 2000 -> report("אחסון", "נשארו $freeMb MB פנויים. הורדת מודלים נוספים דורשת יותר", Level.WARNING)
+            freeMb < 500 -> report(tr("אחסון"), tr("נשארו רק {0} MB פנויים: יצירה ושמירת מודלים עלולות להיכשל", freeMb))
+            freeMb < 2000 -> report(tr("אחסון"), tr("נשארו {0} MB פנויים. הורדת מודלים נוספים דורשת יותר", freeMb), Level.WARNING)
         }
     }
 
@@ -103,53 +103,53 @@ object Health {
         val packs = listOf(ModelStore.MAIN, ModelStore.NPU, ModelStore.TRIPOSG) + Extras.all.map { it.pack }
         for (p in packs) {
             when (val s = ModelStore.status(ctx, p)) {
-                is ModelStore.Status.Failed -> report("מודלים", "${p.title}: ${s.message}")
+                is ModelStore.Status.Failed -> report(tr("מודלים"), "${p.title}: ${s.message}")
                 ModelStore.Status.Missing -> {
                     // Half-downloaded files that no longer match: the user sees "download" again.
                     val partial = p.files().filter { ModelStore.file(ctx, it).exists() }
-                    if (partial.isNotEmpty() && !ModelStore.isReady(ctx, p)) report("מודלים",
-                        "${p.title}: ${partial.size} קבצים קיימים אבל החבילה לא שלמה", Level.WARNING)
+                    if (partial.isNotEmpty() && !ModelStore.isReady(ctx, p)) report(tr("מודלים"),
+                        tr("{0}: {1} קבצים קיימים אבל החבילה לא שלמה", p.title, partial.size), Level.WARNING)
                 }
                 else -> {}
             }
         }
-        if (!ModelStore.isReady(ctx)) report("מודלים", "המודל הראשי עוד לא הורד", Level.WARNING)
+        if (!ModelStore.isReady(ctx)) report(tr("מודלים"), tr("המודל הראשי עוד לא הורד"), Level.WARNING)
     }
 
     private fun processors(ctx: Context) {
         if (!Capabilities.isSnapdragon()) {
-            report("מעבדים", "הטלפון לא Snapdragon (${Build.SOC_MODEL}): רק CPU, יצירה איטית", Level.WARNING)
+            report(tr("מעבדים"), tr("הטלפון לא Snapdragon ({0}): רק CPU, יצירה איטית", Build.SOC_MODEL), Level.WARNING)
             return
         }
         for (r in Capabilities.results(ctx).values) {
             if (r.support in listOf(Support.FAILED, Support.CRASHED, Support.UNSUPPORTED)) {
-                report("מעבדים", "${r.backend.label}: ${r.support.label}. ${r.detail.take(200)}",
+                report(tr("מעבדים"), "${r.backend.label}: ${r.support.label}. ${r.detail.take(200)}",
                     if (r.backend == Backend.CPU) Level.ERROR else Level.WARNING)
             }
         }
         for (b in Backend.entries) if (AppState.crashedBefore(b)) {
-            report("מעבדים", "האפליקציה נסגרה בעבר בזמן עבודה על ${b.label}; המצב האוטומטי מדלג עליו", Level.WARNING)
+            report(tr("מעבדים"), tr("האפליקציה נסגרה בעבר בזמן עבודה על {0}; המצב האוטומטי מדלג עליו", b.label), Level.WARNING)
         }
     }
 
     private fun assets(ctx: Context) {
         for (name in listOf("fonts/Rubik-Bold.ttf", "third_party_licenses.txt", "legal/terms_he.txt", "legal/privacy_he.txt")) {
-            runCatching { ctx.assets.open(name).close() }.onFailure { report("קבצי האפליקציה", "חסר $name") }
+            runCatching { ctx.assets.open(name).close() }.onFailure { report(tr("קבצי האפליקציה"), tr("חסר {0}", name)) }
         }
     }
 
     private fun power(ctx: Context) {
         val pm = ctx.getSystemService(PowerManager::class.java)
-        if (pm.isPowerSaveMode) report("מצב סוללה וחום", "חיסכון בסוללה פעיל: היצירה תהיה איטית יותר", Level.WARNING)
+        if (pm.isPowerSaveMode) report(tr("מצב סוללה וחום"), tr("חיסכון בסוללה פעיל: היצירה תהיה איטית יותר"), Level.WARNING)
         if (pm.currentThermalStatus >= PowerManager.THERMAL_STATUS_SEVERE) {
-            report("מצב סוללה וחום", "הטלפון חם מאוד (רמה ${pm.currentThermalStatus}): המעבדים מואטים", Level.WARNING)
+            report(tr("מצב סוללה וחום"), tr("הטלפון חם מאוד (רמה {0}): המעבדים מואטים", pm.currentThermalStatus), Level.WARNING)
         }
     }
 
     private fun permissions(ctx: Context) {
         if (Build.VERSION.SDK_INT >= 33 &&
             ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            report("הרשאות", "התראות כבויות: לא תקבל הודעה כשמודל מוכן ברקע", Level.WARNING)
+            report(tr("הרשאות"), tr("התראות כבויות: לא תקבל הודעה כשמודל מוכן ברקע"), Level.WARNING)
         }
     }
 }
