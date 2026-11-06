@@ -69,7 +69,8 @@ object Creations {
                 }
                 val seconds = (System.nanoTime() - t0) / 1e9
                 val p = AppState.saveProject(mesh, thumb, "—", kind.label, seconds, emptyMap(),
-                    name = "${kind.label} ${AppState.projects.count { it.quality == kind.label } + 1}")
+                    name = "${kind.label} ${AppState.projects.count { it.quality == kind.label } + 1}",
+                    source = image, kind = kind.name)
                 CrashLog.log("Created ${kind.name} in %.1fs: ${mesh.triangleCount} triangles".format(seconds))
                 withContext(Dispatchers.Main) { AppState.showNew(mesh, p) }
             } catch (e: Throwable) {

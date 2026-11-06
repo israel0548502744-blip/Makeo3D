@@ -84,7 +84,19 @@ data class Project(
     val triangles: Int,
     /** Seconds per pipeline stage (Stage names), for the result screen and diagnostics. */
     val timings: Map<String, Double> = emptyMap(),
+    /** TRIPOSR, TRIPOSG or a Creations.Kind name; inferred for projects saved before it existed. */
+    val kind: String = "",
 ) {
+    /** Gallery tab: "sr", "sg" or "craft". */
+    val group: String get() = when {
+        kind == Generator.TRIPOSG.name || (kind.isEmpty() && Stage.DENOISE.name in timings) -> "sg"
+        kind == Generator.TRIPOSR.name || (kind.isEmpty() && backend != "—") -> "sr"
+        else -> "craft"
+    }
+    /** The picture the model was made from, for "create again" (thumbnail only for older projects). */
+    fun source(ctx: Context): Bitmap? = (File(dir(ctx), "source.jpg").takeIf { it.exists() } ?: File(dir(ctx), "thumb.png")
+        .takeIf { it.exists() })?.let { BitmapFactory.decodeFile(it.absolutePath) }
+
     /** Image -> mesh with vertex colors (encode, density field, surface, colors). */
     val geometrySeconds: Double get() = listOf(Stage.ENCODE, Stage.DENOISE, Stage.FIELD, Stage.SURFACE, Stage.COLOR).sumOf { timings[it.name] ?: 0.0 }
     val textureSeconds: Double? get() = timings[Stage.TEXTURE.name]
@@ -335,7 +347,7 @@ object AppState {
                 val timings = LinkedHashMap<String, Double>()
                 timings[Stage.SEGMENT.name] = segSeconds
                 for ((s, t) in out.timings) timings[s.name] = t
-                finish(out.mesh, frame, eng.encoderBackend.short, quality.label, timings, seconds)
+                finish(out.mesh, frame, eng.encoderBackend.short, quality.label, timings, seconds, image, Generator.TRIPOSR.name)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 CrashLog.log("Job cancelled")
                 job = null
@@ -352,8 +364,10 @@ object AppState {
         }
     }
 
-    private suspend fun finish(m: Mesh, thumb: Bitmap, backend: String, quality: String, timings: Map<String, Double>, seconds: Double) {
-        val p = saveProject(m, thumb, backend, quality, (System.currentTimeMillis() - job!!.startedAt) / 1000.0, timings)
+    private suspend fun finish(m: Mesh, thumb: Bitmap, backend: String, quality: String, timings: Map<String, Double>, seconds: Double,
+                               source: Bitmap, kind: String) {
+        val p = saveProject(m, thumb, backend, quality, (System.currentTimeMillis() - job!!.startedAt) / 1000.0, timings,
+            source = source, kind = kind)
         CrashLog.log(("Job done in %.1fs (pipeline %.1fs): geometry %.2fs, texture %s, ${m.triangleCount} triangles, " +
             "texture ${m.texture?.size ?: 0}px").format(p.seconds, seconds, p.geometrySeconds,
             p.textureSeconds?.let { "%.2fs".format(it) } ?: "off"))
@@ -385,7 +399,22 @@ object AppState {
         val timings = LinkedHashMap<String, Double>()
         timings[Stage.SEGMENT.name] = segSeconds
         for ((s, t) in out.timings) timings[s.name] = t
-        finish(out.mesh, pv.framed, "NPU", "TripoSG · $steps צעדים" + if (Settings.sgGuidanceInterval(app)) " · הכוונה חכמה" else "", timings, (System.nanoTime() - t0) / 1e9)
+        finish(out.mesh, pv.framed, "NPU", "TripoSG · $steps צעדים" + if (Settings.sgGuidanceInterval(app)) " · הכוונה חכמה" else "", timings, (System.nanoTime() - t0) / 1e9,
+            image, Generator.TRIPOSG.name)
+    }
+
+    /** "Create again": the project's picture goes back to the create screen, with today's settings. */
+    fun recreate(p: Project) {
+        if (isRunning) { navigate(Screen.Processing); return }
+        scope.launch {
+            val bmp = withContext(Dispatchers.IO) { p.source(app) }
+            withContext(Dispatchers.Main) {
+                if (bmp == null) { notice = "התמונה המקורית של המודל הזה לא נשמרה"; return@withContext }
+                if (job?.done == true) job = null
+                setImage(bmp)
+                navigate(Screen.Create)
+            }
+        }
     }
 
     /** The "+" / "create" entry point: shows the running job, or a fresh create screen. */
@@ -422,11 +451,17 @@ object AppState {
     private fun projectsDir() = File(app.filesDir, "projects").apply { mkdirs() }
 
     fun saveProject(mesh: Mesh, thumb: Bitmap, backend: String, quality: String, seconds: Double,
-                    timings: Map<String, Double>, name: String = "מודל ${projects.size + 1}"): Project {
+                    timings: Map<String, Double>, name: String = "מודל ${projects.size + 1}",
+                    source: Bitmap? = null, kind: String = ""): Project {
         val id = System.currentTimeMillis().toString()
         val p = Project(id, name, System.currentTimeMillis(), backend, quality,
-            seconds, mesh.vertexCount, mesh.triangleCount, timings)
+            seconds, mesh.vertexCount, mesh.triangleCount, timings, kind)
         val dir = p.dir(app).apply { mkdirs() }
+        source?.let { src ->
+            val s = minOf(1f, 1536f / maxOf(src.width, src.height))
+            val b = if (s < 1f) Bitmap.createScaledBitmap(src, (src.width * s).toInt(), (src.height * s).toInt(), true) else src
+            File(dir, "source.jpg").outputStream().use { b.compress(Bitmap.CompressFormat.JPEG, 92, it) }
+        }
         MeshTools.save(mesh, File(dir, "mesh.bin"))
         File(dir, "thumb.png").outputStream().use {
             Bitmap.createScaledBitmap(thumb, 256, 256, true).compress(Bitmap.CompressFormat.PNG, 100, it)
@@ -442,7 +477,7 @@ object AppState {
             put("name", p.name); put("created", p.created); put("backend", p.backend)
             put("quality", p.quality); put("seconds", p.seconds)
             put("vertices", p.vertices); put("triangles", p.triangles)
-            put("timings", JSONObject(p.timings))
+            put("timings", JSONObject(p.timings)); put("kind", p.kind)
         }.toString())
     }
 
@@ -454,7 +489,8 @@ object AppState {
                 val t = j.optJSONObject("timings")
                 val timings = t?.keys()?.asSequence()?.associateWith { t.getDouble(it) } ?: emptyMap()
                 Project(dir.name, j.getString("name"), j.getLong("created"), j.optString("backend"),
-                    j.optString("quality"), j.optDouble("seconds"), j.optInt("vertices"), j.optInt("triangles"), timings)
+                    j.optString("quality"), j.optDouble("seconds"), j.optInt("vertices"), j.optInt("triangles"), timings,
+                    j.optString("kind"))
             }.getOrNull()
         }?.sortedByDescending { it.created } ?: emptyList()
         synchronized(projects) { projects.clear(); projects.addAll(list) }

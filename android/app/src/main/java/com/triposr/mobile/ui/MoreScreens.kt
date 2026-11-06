@@ -214,6 +214,9 @@ fun ResultScreen() {
                 exportTime?.let { Chip(it, C.Orange) }
                 Chip(project.backend, C.Orange)
             }
+            if (project.group != "craft") SoftButton("צור מחדש מאותה תמונה", Modifier.fillMaxWidth(), Icons.Rounded.Autorenew) {
+                AppState.recreate(project)
+            }
 
             Section(title = "עריכה") {
                 Text("החלקה: ${smoothIt.roundToInt()}", color = C.Sub, fontSize = 13.sp)
@@ -388,9 +391,25 @@ private fun PrintRow(ok: Boolean, title: String, detail: String) {
 fun ProjectsScreen() {
     var query by remember { mutableStateOf("") }
     var toDelete by remember { mutableStateOf<Project?>(null) }
-    val list = AppState.projects.filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
+    var tab by remember { mutableStateOf("") }
+    val list = AppState.projects.filter {
+        (tab.isEmpty() || it.group == tab) && (query.isBlank() || it.name.contains(query, ignoreCase = true))
+    }
     Column(Modifier.fillMaxSize()) {
         TopBar("הגלריה שלי")
+        Row(Modifier.horizontalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for ((key, label) in listOf("" to "הכל", "sr" to "מהיר (TripoSR)", "sg" to "מדויק (TripoSG)", "craft" to "יצירות להדפסה")) {
+                val n = if (key.isEmpty()) AppState.projects.size else AppState.projects.count { it.group == key }
+                if (key.isNotEmpty() && n == 0) continue
+                val on = tab == key
+                Text("$label · $n", color = if (on) Color.White else C.Sub, fontSize = 13.sp,
+                    fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
+                    modifier = Modifier.clip(RoundedCornerShape(50))
+                        .background(if (on) C.Violet else Color(0x14FFFFFF))
+                        .pressable { tab = key }.padding(horizontal = 14.dp, vertical = 8.dp))
+            }
+        }
         OutlinedTextField(query, { query = it }, singleLine = true, colors = fieldColors(),
             placeholder = { Text("חיפוש פרויקטים…", color = C.Sub) },
             leadingIcon = { Icon(Icons.Rounded.Search, null, tint = C.Sub) },
