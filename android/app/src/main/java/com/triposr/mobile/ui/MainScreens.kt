@@ -666,6 +666,16 @@ private fun AdvancedOptions(smoothOn: Boolean, generator: Generator) {
                     else tr("מופעל רק כשהחלקת משטח דולקת."), color = C.Sub, fontSize = 12.sp)
                 Spacer(Modifier.height(6.dp))
                 if (generator == Generator.TRIPOSG) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        for ((n, label) in listOf(Settings.DEFAULT_SG_STEPS to tr("רגיל · כ-1.5 דקות"), 25 to tr("איכות גבוהה · כ-3.5 דקות"))) {
+                            val on = steps.roundToInt() == n
+                            Text(label, color = if (on) Color.White else C.Sub, fontSize = 13.sp,
+                                modifier = Modifier.weight(1f).clip(RoundedCornerShape(50))
+                                    .background(if (on) C.Violet else Color(0x14FFFFFF))
+                                    .pressable { steps = n.toFloat(); Settings.setSgSteps(ctx, n) }
+                                    .padding(horizontal = 12.dp, vertical = 9.dp), textAlign = TextAlign.Center)
+                        }
+                    }
                     Text(tr("צעדי בנייה: {0}", steps.roundToInt()) + if (steps.roundToInt() == Settings.DEFAULT_SG_STEPS) tr(" (ברירת מחדל)") else "",
                         color = C.Text, fontSize = 14.sp)
                     Slider(steps, { steps = it.roundToInt().toFloat() }, valueRange = 10f..50f,

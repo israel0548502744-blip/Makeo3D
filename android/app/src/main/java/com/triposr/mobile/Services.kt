@@ -74,10 +74,11 @@ object Settings {
         ?.let { runCatching { Generator.valueOf(it) }.getOrNull() }?.takeIf { it.ready(ctx) } ?: Generator.TRIPOSR
     fun setGenerator(ctx: Context, g: Generator) = prefs(ctx).edit().putString("generator", g.name).apply()
 
-    /** Advanced, TripoSG only: denoising steps. Fewer is faster; 25 is close to the original 50. */
+    /** Advanced, TripoSG only: denoising steps. 10 is the normal mode (about 1.5 min on the int8
+     *  pack, good shapes on the device); 25 is the high-quality mode, close to the original 50. */
     fun sgSteps(ctx: Context) = prefs(ctx).getInt("sg_steps", DEFAULT_SG_STEPS)
     fun setSgSteps(ctx: Context, v: Int) = prefs(ctx).edit().putInt("sg_steps", v).apply()
-    const val DEFAULT_SG_STEPS = 25
+    const val DEFAULT_SG_STEPS = 10
 
     /**
      * Advanced, TripoSG only: guidance (the extra "without the image" pass) only on the middle
