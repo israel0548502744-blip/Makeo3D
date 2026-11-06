@@ -60,6 +60,22 @@ What remains for the lawyer is narrower: whether the TripoSG *weights* themselve
 VAST with Hunyuan-derived code, released under MIT) carry any Hunyuan obligation. VAST
 publishes them as MIT, and the Hunyuan license says Tencent claims no rights in outputs.
 
+## Written answer from Tripo / VAST support (2026-11-06)
+
+Ticket #20261025000338 (support@ Tripo, agent "Cherry"), reply of 2026-11-06 to our e-mail of
+2026-10-25 describing exactly this use (MIT weights from Hugging Face, own implementation,
+converted for the Qualcomm NPU, hosted for download, app sold later, MIT notice + credit):
+
+1. "Commercial Use: The MIT License permits commercial use, modification, and redistribution of
+   the licensed materials, subject to its terms and conditions."
+2. "Additional License Requirements: Based on the publicly available license information, we did
+   not find any indication that the TripoSG weights are additionally subject to the Tencent
+   Hunyuan Community License."
+
+They closed with: "We appreciate your interest in integrating TripoSG into Makeo 3D and wish you
+success with your project!" Note the wording: a review of the public license, not a separate
+signed grant. It strongly supports risk 2 being low; keep the e-mail (PDF) with the legal file.
+
 ## Converting models in CI (question from 2026-10-24)
 
 Converting TripoSG on the build server does not copy anyone's code into the app: the workflow
