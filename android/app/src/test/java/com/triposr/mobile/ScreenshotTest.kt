@@ -188,6 +188,18 @@ class ScreenshotTest {
 
     @Test fun legal() = shot("16_legal") { com.triposr.mobile.ui.LegalScreen() }
 
+    /** The same screens in English (left-to-right). */
+    private fun english(block: () -> Unit) {
+        I18n.setChoice(ctx, I18n.Choice.EN); I18n.init(ctx)
+        try { block() } finally { I18n.setChoice(ctx, I18n.Choice.HE); I18n.init(ctx) }
+    }
+
+    @Test fun homeEnglish() = english { shot("en_01_home", Screen.Home) { HomeScreen() } }
+    @Test fun createEnglish() = english { AppState.input = sampleImage(); shot("en_03_create_image") { CreateScreen({}, {}, {}) } }
+    @Test fun settingsEnglish() = english { shot("en_08_settings", Screen.Settings) { SettingsScreen() } }
+    @Test fun modelsEnglish() = english { shot("en_14_models", Screen.Models) { com.triposr.mobile.ui.ModelsScreen() } }
+    @Test fun legalEnglish() = english { shot("en_16_legal") { com.triposr.mobile.ui.LegalScreen() } }
+
     @Test fun homeModelMissing() {
         ctx.getSharedPreferences("models", Context.MODE_PRIVATE).edit().clear().commit()
         shot("10_home_no_model", Screen.Home) { HomeScreen() }
