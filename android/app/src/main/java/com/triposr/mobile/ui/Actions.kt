@@ -51,6 +51,14 @@ object Actions {
             .onFailure { Toast.makeText(ctx, tr("לא נמצאה אפליקציית מייל. כתוב לנו: {0}", SUPPORT_EMAIL), Toast.LENGTH_LONG).show() }
     }
 
+    fun shareVideo(ctx: Context, f: File) {
+        val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.files", f)
+        val send = Intent(Intent.ACTION_SEND).setType("video/mp4").putExtra(Intent.EXTRA_STREAM, uri)
+            .putExtra(Intent.EXTRA_TEXT, tr("נוצר עם Makeo 3D: מתמונה אחת למודל תלת־ממד, ישירות בטלפון"))
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        ctx.startActivity(Intent.createChooser(send, tr("שתף סרטון")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
     fun loadBitmap(ctx: Context, uri: Uri): Bitmap? = runCatching {
         val src = ImageDecoder.createSource(ctx.contentResolver, uri)
         ImageDecoder.decodeBitmap(src) { decoder, info, _ ->

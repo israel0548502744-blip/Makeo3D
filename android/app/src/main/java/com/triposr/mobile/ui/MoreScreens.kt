@@ -1,5 +1,7 @@
 package com.triposr.mobile.ui
 
+import com.triposr.mobile.TurntableVideo
+import java.io.File
 import com.triposr.mobile.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,6 +35,7 @@ import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Gavel
 import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.PrivacyTip
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Warning
@@ -217,6 +220,26 @@ fun ResultScreen() {
             }
             if (project.group != "craft") SoftButton(tr("צור מחדש מאותה תמונה"), Modifier.fillMaxWidth(), Icons.Rounded.Autorenew) {
                 AppState.recreate(project)
+            }
+            var video by remember { mutableStateOf<Float?>(null) }
+            SoftButton(video?.let { tr("מכין סרטון… {0}%", (it * 100).toInt()) } ?: tr("שתף סרטון (טיקטוק, אינסטגרם)"),
+                Modifier.fillMaxWidth(), Icons.Rounded.Movie, enabled = video == null) {
+                video = 0f
+                scope.launch {
+                    runCatching {
+                        withContext(Dispatchers.Default) {
+                            File(ctx.cacheDir, "export/Makeo3D.mp4").also {
+                                it.parentFile?.mkdirs()
+                                TurntableVideo.render(ctx, mesh, it) { p -> video = p }
+                            }
+                        }
+                    }.onSuccess { Actions.shareVideo(ctx, it) }
+                        .onFailure {
+                            CrashLog.error("turntable video", it)
+                            android.widget.Toast.makeText(ctx, tr("יצירת הסרטון נכשלה: {0}", it.message), android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    video = null
+                }
             }
 
             Section(title = tr("עריכה")) {

@@ -81,7 +81,7 @@ class MeshView(context: Context) : GLSurfaceView(context) {
     }
 }
 
-private class MeshRenderer : GLSurfaceView.Renderer {
+internal class MeshRenderer : GLSurfaceView.Renderer {
     @Volatile var yaw = 30f
     @Volatile var pitch = 15f
     @Volatile var distance = 2.4f

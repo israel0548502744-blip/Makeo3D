@@ -469,5 +469,10 @@
 "תמיכה ומשוב": "Support and feedback",
 "תנאי שימוש": "Terms of use",
 "תצטרך להוריד אותו שוב (1.7GB) כדי ליצור מודלים חדשים. הפרויקטים השמורים נשארים.": "You'll need to download it again (1.7GB) to create new models. Saved projects stay.",
-"תקלות שזוהו ({0})": "Problems found ({0})"
+"תקלות שזוהו ({0})": "Problems found ({0})",
+"מכין סרטון… {0}%": "Making video… {0}%",
+"שתף סרטון (טיקטוק, אינסטגרם)": "Share a video (TikTok, Instagram)",
+"יצירת הסרטון נכשלה: {0}": "Making the video failed: {0}",
+"נוצר עם Makeo 3D: מתמונה אחת למודל תלת־ממד, ישירות בטלפון": "Made with Makeo 3D: from one picture to a 3D model, right on the phone",
+"שתף סרטון": "Share video"
 }
