@@ -74,7 +74,8 @@ converted for the Qualcomm NPU, hosted for download, app sold later, MIT notice 
 
 They closed with: "We appreciate your interest in integrating TripoSG into Makeo 3D and wish you
 success with your project!" Note the wording: a review of the public license, not a separate
-signed grant. It strongly supports risk 2 being low; keep the e-mail (PDF) with the legal file.
+signed grant. It strongly supports risk 2 being low. The e-mail is kept as
+`docs/legal-evidence/2026-11-06_tripo-vast_triposg-commercial-use.pdf`.
 
 ## Converting models in CI (question from 2026-10-24)
 
