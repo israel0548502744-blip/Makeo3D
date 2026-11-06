@@ -394,6 +394,7 @@ object NpuPack {
 /**
  * Settings the app reads from the public repository on launch. min_build lets builds that are
  * no longer supported (e.g. the free test builds once the app is in the store) be switched off.
+ * Store builds read their own key (min_build_store), so retiring the GitHub builds never hits them.
  */
 object RemoteConfig {
     data class Retired(val message: String, val url: String)
@@ -408,7 +409,7 @@ object RemoteConfig {
         } finally {
             conn.disconnect()
         }
-        if (BuildConfig.VERSION_CODE >= json.optInt("min_build", 0)) null
+        if (BuildConfig.VERSION_CODE >= json.optInt(if (BuildConfig.STORE) "min_build_store" else "min_build", 0)) null
         else Retired(json.optString("message").ifBlank { "הגרסה הזו כבר לא נתמכת. כדי להמשיך, יש להתקין את הגרסה העדכנית." },
             json.optString("url"))
     }
@@ -419,6 +420,7 @@ object Updater {
     data class Update(val build: Int, val sizeMb: Long, val url: String, val notes: String)
 
     suspend fun check(): Update? {
+        if (BuildConfig.STORE) return null  // the store installs updates itself
         val rel = githubJson("releases/latest")
         val build = rel.getString("tag_name").removePrefix("apk-").toIntOrNull() ?: return null
         if (build <= BuildConfig.VERSION_CODE) return null

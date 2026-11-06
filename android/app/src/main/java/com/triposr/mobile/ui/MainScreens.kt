@@ -80,6 +80,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.triposr.mobile.BuildConfig
 import com.triposr.mobile.AppState
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Lightbulb
@@ -384,6 +385,8 @@ fun NoticeCard(text: String, onDismiss: () -> Unit) {
 
 @Composable
 fun CrashCard() {
+    // Store users don't get a crash banner: the report waits quietly in Settings, Support.
+    if (BuildConfig.STORE) return
     val ctx = LocalContext.current
     var report by remember { mutableStateOf(CrashLog.pendingReport) }
     val r = report ?: return

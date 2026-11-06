@@ -2,5 +2,6 @@
 <paths>
     <cache-path name="camera" path="camera/" />
     <cache-path name="export" path="export/" />
+    <cache-path name="report" path="report/" />
     <external-files-path name="updates" path="updates/" />
 </paths>

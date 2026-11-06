@@ -18,6 +18,10 @@ jobs:
       # Token that may write releases to the public repository (the code repository is private,
       # so the app reads its updates from there).
       PUBLIC_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+      # The private Play upload key (base64 of the .jks) and its password. Without them the
+      # store bundle is skipped and only the test APK is built.
+      UPLOAD_KEYSTORE_B64: ${{ secrets.UPLOAD_KEYSTORE_B64 }}
+      UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -36,9 +40,18 @@ jobs:
 
       - name: Build APK
         run: |
-          gradle -p android assembleRelease --no-daemon
-          cp android/app/build/outputs/apk/release/app-release.apk Makeo3D.apk
+          gradle -p android assembleGithubRelease --no-daemon
+          cp android/app/build/outputs/apk/github/release/app-github-release.apk Makeo3D.apk
           ls -la Makeo3D.apk
+
+      - name: Build the store bundle (com.makeo3d.app, signed with the upload key)
+        if: env.UPLOAD_KEYSTORE_B64 != ''
+        run: |
+          echo "$UPLOAD_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          UPLOAD_KEYSTORE_PATH="$RUNNER_TEMP/upload.jks" gradle -p android bundlePlayRelease --no-daemon
+          rm -f "$RUNNER_TEMP/upload.jks"
+          cp android/app/build/outputs/bundle/playRelease/app-play-release.aab Makeo3D-play.aab
+          ls -la Makeo3D-play.aab
 
       - uses: actions/upload-artifact@v4
         with:
@@ -52,7 +65,7 @@ jobs:
           TAG: apk-${{ github.run_number }}
         run: |
           printf 'Install Makeo3D.apk on the phone (allow installing from unknown sources).\nThe AI models are downloaded from inside the app.\nBuilt from %s @ %s.\n' "${{ github.ref_name }}" "${{ github.sha }}" > notes.txt
-          gh release create "$TAG" Makeo3D.apk --target "${{ github.sha }}" --title "Makeo 3D build ${{ github.run_number }}" \
+          gh release create "$TAG" Makeo3D.apk $(ls Makeo3D-play.aab 2>/dev/null) --target "${{ github.sha }}" --title "Makeo 3D build ${{ github.run_number }}" \
             --notes-file notes.txt --latest
 
       - name: Publish to the public repository (where the app looks for updates)

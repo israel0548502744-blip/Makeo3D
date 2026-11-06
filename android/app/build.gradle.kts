@@ -21,13 +21,40 @@ android {
         ndk { abiFilters += "arm64-v8a" }
     }
 
-    // A fixed key, so each new APK installs over the previous one as an update.
+    // github: the test build (APK from GitHub, self-updater, public test key, old package id so
+    // installed copies and their downloaded models stay). play: the store build (AAB, no
+    // self-updater, signed with the private upload key; Google re-signs it with the app key).
+    flavorDimensions += "channel"
+    productFlavors {
+        create("github") {
+            dimension = "channel"
+            applicationId = "com.triposr.mobile"
+            buildConfigField("boolean", "STORE", "false")
+        }
+        create("play") {
+            dimension = "channel"
+            applicationId = "com.makeo3d.app"
+            buildConfigField("boolean", "STORE", "true")
+        }
+    }
+
     signingConfigs {
-        create("release") {
+        // A fixed key, so each new test APK installs over the previous one as an update.
+        // It is public (in the repository): never for the store.
+        create("test") {
             storeFile = file("../keystore/triposr.jks")
             storePassword = "triposr"
             keyAlias = "triposr"
             keyPassword = "triposr"
+        }
+        // The upload key comes only from CI secrets (UPLOAD_KEYSTORE_B64 decoded to this path).
+        System.getenv("UPLOAD_KEYSTORE_PATH")?.let { path ->
+            create("upload") {
+                storeFile = file(path)
+                storePassword = System.getenv("UPLOAD_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("UPLOAD_KEY_ALIAS") ?: "upload"
+                keyPassword = System.getenv("UPLOAD_KEYSTORE_PASSWORD")
+            }
         }
     }
 
@@ -36,9 +63,11 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("release")
         }
     }
+    // Per flavor, not per build type (a build type's key would win over the flavor's).
+    productFlavors.getByName("github").signingConfig = signingConfigs.getByName("test")
+    productFlavors.getByName("play").signingConfig = signingConfigs.findByName("upload")
 
     buildFeatures {
         compose = true

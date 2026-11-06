@@ -27,7 +27,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Error
+import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Gavel
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.PrivacyTip
@@ -450,8 +452,24 @@ fun SettingsScreen() {
         TopBar("הגדרות")
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Section(Modifier.enter(0), title = "תמיכה ומשוב") {
+                val waiting = CrashLog.pendingReport != null || errors > 0
+                NavRow(Icons.Rounded.BugReport, "דווח על תקלה",
+                    if (waiting) "נשמר דוח תקלה · לחץ כדי לשלוח לנו" else "שולח לנו דוח מצב שעוזר לתקן מהר",
+                    badge = if (waiting) "1" else null, badgeColor = C.Amber,
+                    brush = Brush.linearGradient(listOf(Color(0xFFF43F5E), Color(0xFFF97316)))) {
+                    Actions.email(ctx, "דיווח על תקלה", "מה קרה? (כמה מילים עוזרות מאוד)\n\n",
+                        (CrashLog.pendingReport?.let { it + "\n\n" } ?: "") + CrashLog.diagnostics())
+                }
+                RowDivider()
+                NavRow(Icons.Rounded.Lightbulb, "הצעה לשיפור", "רעיון לפיצ'ר או משהו שיכול להיות טוב יותר") {
+                    Actions.email(ctx, "הצעה לשיפור", "")
+                }
+                RowDivider()
+                NavRow(Icons.Rounded.Email, "צור קשר", Actions.SUPPORT_EMAIL) { Actions.email(ctx, "פנייה", "") }
+            }
             Section(Modifier.enter(0)) {
-                NavRow(Icons.Rounded.BugReport, "דוחות ותקלות",
+                if (!BuildConfig.STORE) NavRow(Icons.Rounded.BugReport, "דוחות ותקלות",
                     when {
                         errors > 0 -> "$errors שגיאות זוהו · לחץ להעתקה ושליחה"
                         problems.isNotEmpty() -> "${problems.size} אזהרות · הכל עובד"
@@ -461,7 +479,7 @@ fun SettingsScreen() {
                     badge = if (errors > 0) "$errors" else if (problems.isNotEmpty()) "${problems.size}" else null,
                     badgeColor = if (errors > 0) C.Red else C.Amber,
                     brush = Brush.linearGradient(listOf(Color(0xFFF43F5E), Color(0xFFF97316)))) { AppState.navigate(Screen.Diagnostics) }
-                RowDivider()
+                if (!BuildConfig.STORE) RowDivider()
                 NavRow(Icons.Rounded.Memory, "מודלים ומעבדים", "הורדה, מחיקה ובדיקת NPU/GPU") { AppState.navigateRoot(Screen.Models) }
             }
             Section(Modifier.enter(1), title = "ברירות מחדל ליצירה") {
@@ -478,7 +496,7 @@ fun SettingsScreen() {
             }
             Section(Modifier.enter(2), title = "עדכונים") {
                 Text("גרסה ${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})", color = C.Text)
-                SoftButton(if (checking) "בודק…" else "בדוק עדכונים", Modifier.fillMaxWidth(), enabled = !checking) {
+                if (!BuildConfig.STORE) SoftButton(if (checking) "בודק…" else "בדוק עדכונים", Modifier.fillMaxWidth(), enabled = !checking) {
                     checking = true
                     scope.launch {
                         updateMsg = runCatching { Updater.check() }.fold(
@@ -500,6 +518,11 @@ fun SettingsScreen() {
             Section(Modifier.enter(4), title = "אודות") {
                 Text("תמונה לתלת־ממד ויצירות להדפסה, ישירות בטלפון. המודלים (TripoSR, TripoSG) רצים מקומית עם " +
                     "ONNX Runtime ו-Qualcomm QNN, בלי שרת ובלי להעלות תמונות.", color = C.Sub, fontSize = 13.sp)
+                Text("עובד בכל טלפון אנדרואיד 13 ומעלה. בטלפונים בלי מאיץ בינה מלאכותית (NPU) החישוב רץ על המעבד " +
+                    "ולוקח יותר זמן, ובטלפון עם מעט זיכרון מודל כבד עלול להיכשל. TripoSG זמין רק בטלפונים עם " +
+                    "Snapdragon 8 Elite.", color = C.Sub, fontSize = 13.sp)
+                Text("© 2026 Makeo 3D. כל הזכויות שמורות. הקוד, העיצוב, השם והמודלים המומרים שייכים ל-Makeo 3D; " +
+                    "רכיבי קוד פתוח שייכים לבעליהם ומופיעים ברישיונות.", color = C.Faint, fontSize = 12.sp)
             }
             Spacer(Modifier.height(8.dp))
         }

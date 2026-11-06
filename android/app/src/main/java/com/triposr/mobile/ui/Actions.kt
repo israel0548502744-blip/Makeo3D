@@ -33,6 +33,23 @@ object Actions {
         ctx.startActivity(Intent.createChooser(send, "שתף דוח").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
+    const val SUPPORT_EMAIL = "israel0546631352@gmail.com"
+
+    /** Opens the e-mail app to us; with [report] the full diagnostics go along as an attached file. */
+    fun email(ctx: Context, subject: String, body: String, report: String? = null) {
+        val send = Intent(Intent.ACTION_SEND).setType("message/rfc822")
+            .putExtra(Intent.EXTRA_EMAIL, arrayOf(SUPPORT_EMAIL))
+            .putExtra(Intent.EXTRA_SUBJECT, "Makeo 3D · $subject")
+            .putExtra(Intent.EXTRA_TEXT, body)
+        if (report != null) {
+            val f = File(ctx.cacheDir, "report/makeo3d-report.txt").apply { parentFile?.mkdirs(); writeText(report) }
+            send.putExtra(Intent.EXTRA_STREAM, FileProvider.getUriForFile(ctx, "${ctx.packageName}.files", f))
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        runCatching { ctx.startActivity(Intent.createChooser(send, subject).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            .onFailure { Toast.makeText(ctx, "לא נמצאה אפליקציית מייל. כתוב לנו: $SUPPORT_EMAIL", Toast.LENGTH_LONG).show() }
+    }
+
     fun loadBitmap(ctx: Context, uri: Uri): Bitmap? = runCatching {
         val src = ImageDecoder.createSource(ctx.contentResolver, uri)
         ImageDecoder.decodeBitmap(src) { decoder, info, _ ->
