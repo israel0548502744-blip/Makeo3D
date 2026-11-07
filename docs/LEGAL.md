@@ -77,6 +77,23 @@ success with your project!" Note the wording: a review of the public license, no
 signed grant. It strongly supports risk 2 being low. The e-mail is kept as
 `docs/legal-evidence/2026-11-06_tripo-vast_triposg-commercial-use.pdf`.
 
+## Written answer from Qualcomm (2026-11-06): redistributing the QNN runtime
+
+Ann Huang (Qualcomm AI Hub support) confirmed that section 1(iv) of the LICENSE.pdf shipped with
+each QNN release permits redistribution when: (1) the QAIRT components ship only as object code
+(.so); (2) they are part of our product, not offered as a standalone QAIRT package; (3) Qualcomm's
+copyright notices are kept; (4) third-party notice obligations are kept; (5) export controls and
+the other restrictions are followed. How we meet them:
+1-2. The .so files come inside the APK/AAB from Maven `com.qualcomm.qti:qnn-runtime`; never offered
+   as a separate download.
+3-4. Settings, Legal, Open-source licenses shows the Qualcomm copyright/trademark lines and the full
+   `NOTICE.txt` of the runtime (`assets/qnn_NOTICE.txt`, taken from the 2.51.0 AAR). Update it
+   when the runtime version changes.
+5. In Play Console, don't offer the app in embargoed countries (e.g. Cuba, Iran, North Korea,
+   Syria and the sanctioned regions of Ukraine).
+Evidence: `docs/legal-evidence/2026-11-06_qualcomm_qnn-redistribution.pdf` and the license itself,
+`docs/legal-evidence/qnn-runtime-2.51.0_LICENSE.pdf`.
+
 ## Converting models in CI (question from 2026-10-24)
 
 Converting TripoSG on the build server does not copy anyone's code into the app: the workflow

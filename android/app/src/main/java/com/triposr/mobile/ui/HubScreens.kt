@@ -261,7 +261,11 @@ else listOf("legal/terms_he.txt", "legal/privacy_he.txt", "third_party_licenses.
 fun LegalScreen() {
     val ctx = LocalContext.current
     var tab by remember { mutableIntStateOf(AppState.legalTab) }
-    val text = remember(tab) { runCatching { ctx.assets.open(legalFiles[tab]).bufferedReader().readText() }.getOrDefault("") }
+    val text = remember(tab) {
+        fun read(name: String) = runCatching { ctx.assets.open(name).bufferedReader().readText() }.getOrDefault("")
+        // The QNN runtime's third-party notices go with it (Qualcomm's redistribution terms).
+        read(legalFiles[tab]) + if (tab == 2) "\n\n==== Qualcomm AI Engine Direct (QNN) notices ====\n\n" + read("qnn_NOTICE.txt") else ""
+    }
     Column(Modifier.fillMaxSize()) {
         TopBar(tr("משפטי"), onBack = { AppState.back() })
         Box(Modifier.padding(horizontal = 20.dp)) {

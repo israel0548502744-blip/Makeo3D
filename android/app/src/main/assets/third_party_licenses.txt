@@ -22,7 +22,10 @@ LIBRARIES
 ---------
 ONNX Runtime                              MIT           Copyright (c) Microsoft Corporation
 Qualcomm AI Engine Direct (QNN) runtime   Qualcomm AI Model & Software License (object code, as part of this app)
-                                                        Copyright (c) Qualcomm Technologies, Inc.
+                                                        Copyright (c) Qualcomm Technologies, Inc. All rights reserved.
+                                                        Qualcomm is a trademark of Qualcomm Incorporated, registered in the
+                                                        United States and other countries. The QNN third-party notices
+                                                        follow at the end of this page.
 ZXing core (QR codes)                     Apache-2.0    Copyright (c) ZXing authors
 AndroidX, Jetpack Compose, Material       Apache-2.0    Copyright (c) The Android Open Source Project
 Kotlin standard library, kotlinx.coroutines Apache-2.0  Copyright (c) JetBrains s.r.o. and Kotlin contributors
