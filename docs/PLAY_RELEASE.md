@@ -34,6 +34,9 @@ Status 2026-10-24. Items marked ✅ are done in the app; the rest need the owner
 - **Account deletion:** not applicable (no accounts).
 - **Financial features / health / government:** none.
 
+## Countries
+- ☐ Don't offer the app in embargoed countries (Qualcomm export-control condition, see LEGAL.md): Cuba, Iran, North Korea, Syria, and the sanctioned regions of Ukraine.
+
 ## Store listing
 - ☐ Name (≤30 chars), short description (≤80), full description (≤4000), Hebrew + English.
 - ☐ Icon 512×512, feature graphic 1024×500, at least 2 phone screenshots. The CI screenshots (`ui-screenshots` branch) can be the start.
