@@ -5,7 +5,8 @@ name: TripoSG quality checks (guidance interval, int8, field)
 #   int8      DiT parts quantized to int8 weights / 16-bit activations (quantize_triposg.py),
 #             compiled for the NPU into the triposg-v4-int8 pack, and checked on 2 pictures
 #   field     the last level of the shape extraction with a thin shell vs. the full one, on 3 pictures
-# A push of this file runs the checks named in the commit message: [eval:guidance], [eval:int8], [eval:field].
+#   axes      which side of the shape grid faces the picture's camera (for painting the mesh)
+# A push of this file runs the checks named in the commit message: [eval:guidance], [eval:int8], [eval:field], [eval:axes].
 # Pictures: TripoSG's own examples (MIT), the ones not used for calibration. Results (metrics,
 # rendered shapes) go to the eval-results branch.
 on:
@@ -219,14 +220,54 @@ jobs:
           name: field_${{ matrix.image }}
           path: out
 
+  axes:
+    if: ${{ contains(github.event.head_commit.message, '[eval:axes]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [0, 1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Swap
+        run: |
+          sudo mkdir -p /mnt/w && sudo chown $USER /mnt/w
+          sudo fallocate -l 16G /mnt/swap && sudo chmod 600 /mnt/swap && sudo mkswap /mnt/swap && sudo swapon /mnt/swap
+      - name: Install
+        run: |
+          pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install "numpy<2" onnx onnxruntime transformers==4.46.3 scikit-image trimesh huggingface_hub \
+            safetensors scipy pillow matplotlib
+      - name: Fetch weights, pictures, background remover
+        run: |
+          python -c "from huggingface_hub import snapshot_download; snapshot_download('VAST-AI/TripoSG', local_dir='/mnt/w/weights')"
+          mkdir -p /mnt/w/img
+          curl -fsSL "$EXAMPLES" | python -c "import json,sys; [print(f['download_url']) for f in sorted(json.load(sys.stdin), key=lambda f: f['name']) if f['name'].lower().endswith(('.png','.jpg','.jpeg','.webp'))]" > /mnt/w/img/list.txt
+          i=0; while read -r u; do curl -fsSL -o /mnt/w/img/$i.${u##*.} "$u"; i=$((i+1)); [ $i -ge 5 ] && break; done < /mnt/w/img/list.txt
+          curl -fsSL -o /mnt/w/isnet.onnx https://github.com/israel0548502744-blip/makeo3d-public/releases/download/extras-v1/isnet_general.onnx
+      - name: Which side faces the camera
+        run: |
+          img=$(ls /mnt/w/img/${{ matrix.image }}.* | head -1)
+          python convert/sg_eval.py axes --weights /mnt/w/weights --image "$img" --isnet /mnt/w/isnet.onnx \
+            --steps 10 --out out/axes_${{ matrix.image }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: axes_${{ matrix.image }}
+          path: out
+
   report:
-    needs: [guidance, int8, field]
+    needs: [guidance, int8, field, axes]
     if: ${{ always() && contains(github.event.head_commit.message, '[eval:') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: "{guidance,int8,field}_*"
+          pattern: "{guidance,int8,field,axes}_*"
           path: results
           merge-multiple: true
       - name: Summary and eval-results branch
@@ -243,6 +284,8 @@ jobs:
           print("|---|---|---|---|---|---|---|---|")
           for f in sorted(glob.glob("*/metrics.json")):
               m = json.load(open(f))
+              if "views" in m:
+                  print(f"| {f.split('/')[0]} | {m['image']} | silhouette IoU {m['views']} → {m['best']} | | | | | |")
               for k, v in m["variants"].items():
                   print(f"| {f.split('/')[0]} | {m['image']} | {k} | {v['dit_passes']} | {v['seconds']} | {v.get('iou', '')} | {v.get('chamfer_pct', '')} | {v.get('query_total', '')} |")
           PY

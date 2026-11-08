@@ -11,6 +11,9 @@ rendered preview .png, and in metrics.json the agreement with the baseline:
              (Kynkaenniemi et al. 2024): skipped steps run only the image branch
   field      the shape-extraction shell of the last level: full (coarse margin) vs. thin (only
              the cells the surface crosses), on the same latents; also counts the query points
+  axes       which side of the shape grid faces the camera of the input picture: the silhouette
+             seen from +Z, -Z, +X and -X (Y up, not mirrored) against the picture's object mask;
+             the app paints TripoSG meshes from the picture along that direction
   int8       DiT parts quantized to int8 weights / 16-bit activations (QDQ ONNX from
              quantize_triposg.py, run with ONNX Runtime on the CPU) vs. the float parts
 
@@ -213,7 +216,7 @@ def parse_intervals(s):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", choices=["guidance", "int8", "field"])
+    ap.add_argument("mode", choices=["guidance", "int8", "field", "axes"])
     ap.add_argument("--weights", required=True)
     ap.add_argument("--image", required=True)
     ap.add_argument("--isnet")
@@ -238,6 +241,35 @@ def main():
         save(vals, r, a.out, name)
         return (vals, r), {"dit_passes": passes, "seconds": round(time.time() - t0)}
 
+    if a.mode == "axes":
+        lat, _ = sample(pipe, cond, torch_dit(pipe), a.steps, a.seed, lambda s: True)
+        vals, r = decode(pipe, lat)
+        inside = vals < 0 if vals[0, 0, 0] > 0 else vals > 0  # the grid corner is outside
+        pic = np.asarray(img.convert("RGB"), np.float32)
+        mask = (pic < 240).any(-1)  # object on the white background of the prepared picture
+        results["inside_pct"] = round(float(inside.mean() * 100), 2)
+        results["views"] = {}
+        # Columns run along the camera's right vector, rows along -Y (pictures are top-down).
+        views = {"+Z": (inside.any(2), False), "-Z": (inside.any(2), True),
+                 "+X": (inside.any(0).T, True), "-X": (inside.any(0).T, False)}
+        from PIL import Image
+        for name, (m2, flip) in views.items():  # m2[col, y]
+            sil = m2.T[::-1]  # rows: y from top
+            if flip:
+                sil = sil[:, ::-1]
+            ys, xs = np.nonzero(sil); my, mx = np.nonzero(mask)
+            crop = sil[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+            box = (mx.min(), my.min(), mx.max() + 1, my.max() + 1)
+            fit = np.asarray(Image.fromarray(crop.astype(np.uint8) * 255).resize((box[2] - box[0], box[3] - box[1]))) > 127
+            full = np.zeros_like(mask); full[box[1]:box[3], box[0]:box[2]] = fit
+            iou = float((full & mask).sum() / max(1, (full | mask).sum()))
+            results["views"][name] = round(iou, 4)
+            Image.fromarray((np.stack([mask, full, full & mask], -1) * 255).astype(np.uint8)).save(os.path.join(a.out, f"view_{name}.png"))
+        results["best"] = max(results["views"], key=results["views"].get)
+        with open(os.path.join(a.out, "metrics.json"), "w") as f:
+            json.dump(results, f, indent=1)
+        print(json.dumps(results, indent=1))
+        return
     if a.mode == "field":
         # Same latents, two ways of extracting the surface; the phone's 10 steps.
         lat, _ = sample(pipe, cond, torch_dit(pipe), a.steps, a.seed, lambda s: True)
