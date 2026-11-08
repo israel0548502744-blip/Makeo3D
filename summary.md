@@ -1,5 +1,10 @@
 | test | picture | variant | DiT passes | seconds | IoU | Chamfer % | query points |
 |---|---|---|---|---|---|---|---|
+| axes_0 | 0.png | silhouette IoU {'+Z': 0.5869, '-Z': 0.5838, '+X': 0.7323, '-X': 0.3602} → +X | | | | | |
+| axes_1 | 1.png | silhouette IoU {'+Z': 0.9663, '-Z': 0.9646, '+X': 0.8023, '-X': 0.8024} → +Z | | | | | |
+| axes_2 | 2.png | silhouette IoU {'+Z': 0.8595, '-Z': 0.8486, '+X': 0.7186, '-X': 0.7237} → +Z | | | | | |
+| axes_3 | 3.png | silhouette IoU {'+Z': 0.778, '-Z': 0.7548, '+X': 0.663, '-X': 0.6469} → +Z | | | | | |
+| axes_4 | 4.png | silhouette IoU {'+Z': 0.9649, '-Z': 0.9597, '+X': 0.623, '-X': 0.6228} → +Z | | | | | |
 | field_0 | 0.png | baseline | 0 | 247 |  |  | 1628634 |
 | field_0 | 0.png | thin | 0 | 194 | 1.0 | 0.184 | 1228073 |
 | field_1 | 1.png | baseline | 0 | 345 |  |  | 1830076 |
