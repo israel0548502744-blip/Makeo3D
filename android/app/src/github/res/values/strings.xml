@@ -1,0 +1,4 @@
+<resources>
+    <!-- The test build shows up as "Makeo Test", next to the store app "Makeo 3D". -->
+    <string name="app_name">Makeo Test</string>
+</resources>
