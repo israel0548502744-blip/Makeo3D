@@ -262,7 +262,9 @@ class SgEngine(private val context: Context) : AutoCloseable {
             var m = if (smoothIterations > 0) MeshTools.smooth(mesh, smoothIterations) else mesh
             // Above ~600k triangles the viewer and the print check run out of Java heap.
             if (m.triangleCount > MAX_TRIANGLES) m = MeshTools.simplify(m, 1f - MAX_TRIANGLES.toFloat() / m.triangleCount)
-            m.colors = FloatArray(m.positions.size) { 0.82f }
+            m.colors = runCatching { MeshColor.paint(m, cut) }
+                .onFailure { CrashLog.error("TripoSG colors", it) }
+                .getOrElse { FloatArray(m.positions.size) { 0.82f } }
             m
         }
         return TripoEngine.Output(mesh, timings)

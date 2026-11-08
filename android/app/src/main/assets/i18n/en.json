@@ -476,5 +476,8 @@
 "נוצר עם Makeo 3D: מתמונה אחת למודל תלת־ממד, ישירות בטלפון": "Made with Makeo 3D: from one picture to a 3D model, right on the phone",
 "שתף סרטון": "Share video",
 "רגיל · כ-1.5 דקות": "Normal · about 1.5 min",
-"איכות גבוהה · כ-3.5 דקות": "High quality · about 3.5 min"
+"איכות גבוהה · כ-3.5 דקות": "High quality · about 3.5 min",
+"צורה מדויקת וחדה יותר מ-TripoSR, עם הצבעים מהתמונה. רץ על ה-NPU, כ-1.5 דקות למודל.": "A more accurate and sharper shape than TripoSR, with the colors from the picture. Runs on the NPU, about 1.5 minutes per model.",
+"צורה חדה ומדויקת": "Sharp, accurate shape",
+"צורה מדויקת יותר, צבעים מהתמונה. ניסיוני, NPU בלבד": "A more accurate shape, colors from the picture. Experimental, NPU only"
 }

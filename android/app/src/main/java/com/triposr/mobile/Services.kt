@@ -116,7 +116,7 @@ enum class Quality(val label: String, val resolution: Int, val hint: String) {
 enum class Generator(val label: String, val hint: String, val stages: List<Stage>) {
     TRIPOSR("TripoSR", tr("מהיר, עם צבעים וטקסטורה"),
         listOf(Stage.LOAD, Stage.SEGMENT, Stage.ENCODE, Stage.FIELD, Stage.SURFACE, Stage.COLOR, Stage.TEXTURE)),
-    TRIPOSG("TripoSG", tr("צורה מדויקת יותר, בלי צבע. ניסיוני, NPU בלבד"),
+    TRIPOSG("TripoSG", tr("צורה מדויקת יותר, צבעים מהתמונה. ניסיוני, NPU בלבד"),
         listOf(Stage.SEGMENT, Stage.ENCODE, Stage.DENOISE, Stage.FIELD, Stage.SURFACE, Stage.COLOR));
 
     val pack: Pack get() = when (this) {

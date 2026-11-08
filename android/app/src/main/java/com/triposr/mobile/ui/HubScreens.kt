@@ -247,7 +247,7 @@ fun ModelsScreen() {
 @Composable
 fun GeneratorCards(options: List<Generator>, selected: Generator, onSelect: (Generator) -> Unit) {
     ChoiceCards(options, selected, { it.label }, onSelect,
-        subtitle = { when (it) { Generator.TRIPOSR -> tr("מהיר, עם צבעים"); Generator.TRIPOSG -> tr("צורה חדה, בלי צבע") } },
+        subtitle = { when (it) { Generator.TRIPOSR -> tr("מהיר, עם צבעים"); Generator.TRIPOSG -> tr("צורה חדה ומדויקת") } },
         icon = { when (it) { Generator.TRIPOSR -> Icons.Rounded.Bolt; Generator.TRIPOSG -> Icons.Rounded.ViewInAr } },
         badge = { if (it == Generator.TRIPOSG) tr("ניסיוני") else null })
 }
