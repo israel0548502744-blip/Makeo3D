@@ -188,7 +188,7 @@ object ModelStore {
     /** Total size of the pack in the release, or null if the release doesn't have all its files. */
     suspend fun availableSize(pack: Pack): Long? {
         val assets = runCatching { githubJson("releases/tags/${pack.tag}").assets().associateBy { it.name } }
-            .onFailure { Health.report(tr("הורדת מודלים"), tr("{0}: לא הצלחתי לקרוא את רשימת הקבצים: {1}", pack.title, it), Health.Level.WARNING) }
+            .onFailure { if (it !is kotlinx.coroutines.CancellationException) Health.report(tr("הורדת מודלים"), tr("{0}: לא הצלחתי לקרוא את רשימת הקבצים: {1}", pack.title, it), Health.Level.WARNING) }
             .getOrThrow()
         val files = pack.files()
         val missing = files.filter { it !in assets }

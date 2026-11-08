@@ -107,6 +107,8 @@ import com.triposr.mobile.Updater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.ensureActive
 import kotlin.math.roundToInt
 
 @Composable
@@ -140,7 +142,10 @@ fun ResultScreen() {
         print = null; thinPreview = null; showThin = false
         Printability.baseCutMm = baseCut
         runCatching {
-            withContext(Dispatchers.Default) {
+            // One check at a time: a check doesn't stop when its screen is left, and several
+            // dense meshes checked at once (results opened one after another) ran out of heap.
+            printCheckLock.withLock { withContext(Dispatchers.Default) {
+                ensureActive()
                 val t0 = System.nanoTime()
                 // Very dense meshes (TripoSG makes ~800k triangles) run the check out of Java heap.
                 val m = if (mesh.triangleCount > PRINT_CHECK_MAX_TRIANGLES)
@@ -149,7 +154,7 @@ fun ResultScreen() {
                     CrashLog.log("Print check in %.2fs: watertight=${it.report.watertight} minWall=%.2fmm".format(
                         (System.nanoTime() - t0) / 1e9, it.report.minWallMm))
                 }
-            }
+            } }
         }.onSuccess { print = it }.onFailure { CrashLog.error("print check", it) }
     }
     val formats = ExportFormat.available(mesh)
@@ -679,3 +684,4 @@ private fun ReportSection(title: String, text: String, color: Color) {
 }
 
 private const val PRINT_CHECK_MAX_TRIANGLES = 300_000
+private val printCheckLock = kotlinx.coroutines.sync.Mutex()
