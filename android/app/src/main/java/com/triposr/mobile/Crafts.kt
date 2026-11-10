@@ -24,6 +24,24 @@ object Crafts {
     private val DARK = floatArrayOf(0.1f, 0.1f, 0.12f)
     private const val NO_SHAPE = "לא נמצאה צורה בתמונה"
 
+    /** Depth source used instead of the depth extra (the JVM quality tests set it). */
+    @Volatile var depthHook: ((Bitmap, Int, Int) -> FloatArray)? = null
+
+    fun depthReady() = depthHook != null || Extras.ready(AppState.app, Extras.DEPTH)
+
+    /** Raw depth of [src] at [w]×[h] (larger = nearer). */
+    fun depth(src: Bitmap, w: Int, h: Int): FloatArray = depthHook?.invoke(src, w, h) ?: Enhance.depth(AppState.app, src, w, h)
+
+    /** [src] without its background. A picture that already has a transparent background is kept as it is. */
+    fun cutout(src: Bitmap): Bitmap {
+        if (src.hasAlpha()) {
+            val s = Bitmap.createScaledBitmap(src, 48, 48, false)
+            val px = IntArray(48 * 48).also { s.getPixels(it, 0, 48, 0, 0, 48, 48) }
+            if (px.count { Color.alpha(it) < 128 } > px.size / 30) return src
+        }
+        return Enhance.removeBackground(AppState.app, src) { AppState.segmenter() }
+    }
+
     /** The sheet being drawn: [w]×[h] samples of [cell] mm, row 0 at the back. */
     class Sheet(val w: Int, val h: Int, val cell: Float) {
         val top = FloatArray(w * h)
@@ -126,7 +144,7 @@ object Crafts {
      */
     private fun pic(src: Bitmap, samples: Int, removeBg: Boolean, whole: Boolean = false, depth: Boolean = false): Pic {
         val app = AppState.app
-        val img = if (removeBg) Enhance.removeBackground(app, src) { AppState.segmenter() } else src
+        val img = if (removeBg) cutout(src) else src
         val s = samples.toFloat() / maxOf(img.width, img.height)
         val w = (img.width * s).toInt().coerceAtLeast(8); val h = (img.height * s).toInt().coerceAtLeast(8)
         val px = IntArray(w * h).also { Bitmap.createScaledBitmap(img, w, h, true).getPixels(it, 0, w, 0, 0, w, h) }
@@ -135,8 +153,8 @@ object Crafts {
         })
         if (!whole) m = Templates.largest(m)
         if (m.count() < 40) throw IllegalStateException(tr(NO_SHAPE))
-        val d = if (depth && Extras.ready(app, Extras.DEPTH))
-            Heightfield.normalizeDepth(Enhance.depth(app, src, w, h), FloatArray(w * h) { if (m.cells[it]) 1f else 0f }) else null
+        val d = if (depth && depthReady())
+            Heightfield.normalizeDepth(depth(src, w, h), FloatArray(w * h) { if (m.cells[it]) 1f else 0f }) else null
         val b = m.bounds()!!
         val cw = b[2] - b[0] + 1; val ch = b[3] - b[1] + 1
         fun at(i: Int) = (b[1] + i / cw) * w + b[0] + i % cw
@@ -153,7 +171,7 @@ object Crafts {
     /** How raised each sample is, 0..1: the depth extra when it is installed, else dark = raised. */
     private fun raisedBy(src: Bitmap, px: IntArray, w: Int, h: Int): FloatArray {
         val app = AppState.app
-        if (Extras.ready(app, Extras.DEPTH)) return Heightfield.normalizeDepth(Enhance.depth(app, src, w, h))
+        if (depthReady()) return Heightfield.normalizeDepth(depth(src, w, h))
         val lum = Heightfield.luminance(px)
         return FloatArray(w * h) { 1f - lum[it] }
     }
@@ -394,17 +412,17 @@ object Crafts {
     /** Round medal with the face (or object) as a relief, a rim and a caption. Needs the depth extra. */
     fun medal(src: Bitmap, text: String, o: Creations.Options): Pair<Mesh, Bitmap> {
         val app = AppState.app
-        if (!Extras.ready(app, Extras.DEPTH)) throw IllegalStateException(tr("מדליון צריך את \"מפת עומק\" מהשיפורים בהגדרות"))
+        if (!depthReady()) throw IllegalStateException(tr("מדליון צריך את \"מפת עומק\" מהשיפורים בהגדרות"))
         val cell = 0.3f
         val n = (o.sizeMm / cell).roundToInt()
         val side = min(src.width, src.height)
         val square = Bitmap.createBitmap(src, (src.width - side) / 2, (src.height - side) / 2, side, side)
         val px = IntArray(n * n).also { Bitmap.createScaledBitmap(square, n, n, true).getPixels(it, 0, n, 0, 0, n, n) }
         val keep = if (o.flatBackground) {
-            val cut = Bitmap.createScaledBitmap(Enhance.removeBackground(app, square) { AppState.segmenter() }, n, n, true)
+            val cut = Bitmap.createScaledBitmap(cutout(square), n, n, true)
             IntArray(n * n).also { cut.getPixels(it, 0, n, 0, 0, n, n) }.map { Color.alpha(it) / 255f }.toFloatArray()
         } else null
-        val depth = Heightfield.normalizeDepth(Enhance.depth(app, square, n, n), keep)
+        val depth = Heightfield.normalizeDepth(depth(square, n, n), keep)
         val s = Sheet(n + 2, n + 2, cell)
         val rgb = IntArray(s.w * s.h).also { s.rgb = it }
         val c = n / 2f; val r = n / 2f; val rim = 3f / cell

@@ -20,53 +20,67 @@ import kotlinx.coroutines.withContext
  * Photo products are 100 mm on the longest side; templates keep the size the user picked
  * (Mesh.sizeMm), and the print export uses that size, so thicknesses stay exactly as designed.
  */
+/** Marks a Hebrew text that is translated where it is shown. */
+private fun he(s: String) = s
+
 object Creations {
     /** What a product needs before it can be made (OLD: the first products, decided in the screen). */
     enum class Need { OLD, IMAGE, TEXT, EITHER, NONE }
 
-    enum class Kind(val label: String, val needsImage: Boolean, val need: Need = Need.OLD,
-                    val textLabel: String? = null, val secondLabel: String? = null, val toggle: String? = null,
-                    val sizeLabel: String? = null, val min: Float = 0f, val max: Float = 0f, val def: Float = 0f,
-                    val about: String = "") {
-        LITHOPHANE(tr("ליתופן"), true), RELIEF(tr("תבליט"), true), QR(tr("קוד QR"), false),
-        NAME(tr("מחזיק מפתחות"), false), COOKIE(tr("חותכן עוגיות"), true), STAMP(tr("חותמת"), false),
-        MOLD(tr("תבנית יציקה"), true, textLabel = tr("כיתוב שקוע ביציקה (לא חובה)")),
-        STENCIL(tr("שבלונה"), true, Need.IMAGE, sizeLabel = tr("גודל: %.0f מ״מ"), min = 60f, max = 180f, def = 100f,
-            about = tr("לוח דק שהצורה חתוכה בו, לריסוס צבע או לפיזור קקאו ואבקת סוכר. בציור, חלקים סגורים בתוך קו ייפלו החוצה.")),
-        MAGNET(tr("מגנט"), true, Need.IMAGE, sizeLabel = tr("גודל: %.0f מ״מ"), min = 40f, max = 90f, def = 60f,
-            about = tr("האובייקט שבתמונה כלוחית צבעונית, עם שקע מאחור למגנט עגול בקוטר 10 מ״מ (מדביקים אותו).")),
-        STAND(tr("מעמד לטלפון"), false, Need.NONE, textLabel = tr("שם על המעמד (לא חובה)"),
-            about = tr("מעמד לטלפון ברוחב 60 מ״מ, מודפס על הצד בלי תמיכות. השם בולט על הדופן.")),
-        FRAME(tr("מסגרת לתמונה"), false, Need.NONE, textLabel = tr("כיתוב על המסגרת (לא חובה)"),
-            sizeLabel = tr("אורך התמונה: %.0f מ״מ"), min = 90f, max = 150f, def = 130f,
-            about = tr("מסגרת לתמונה מודפסת ביחס 2:3 (למשל 10×15 או 9×13), עם שקע מאחור שמחזיק אותה.")),
-        TOPPER(tr("קישוט לעוגה"), false, Need.EITHER, textLabel = tr("שם או ברכה (או בחר תמונה)"),
-            sizeLabel = tr("רוחב: %.0f מ״מ"), min = 60f, max = 160f, def = 110f,
-            about = tr("שם, ברכה או צורה מתמונה על מקלות שננעצים בעוגה. הקובץ אינו אישור בטיחות למזון.")),
-        PENDANT(tr("תליון"), true, Need.IMAGE, toggle = tr("זוג עגילים"), sizeLabel = tr("גודל: %.0f מ״מ"), min = 20f, max = 60f, def = 35f,
-            about = tr("האובייקט שבתמונה כתליון עם לולאה לשרשרת. \"זוג עגילים\" מדפיס שניים, אחד הפוך מהשני.")),
-        SIGN(tr("שלט"), false, Need.TEXT, textLabel = tr("שם או טקסט"), sizeLabel = tr("גובה אותיות: %.0f מ״מ"), min = 20f, max = 60f, def = 35f,
-            about = tr("שלט לדלת או לחדר: אותיות גדולות בולטות על לוח. החלף פילמנט בגובה 2.4 מ״מ לשני צבעים.")),
-        BOOKMARK(tr("סימנייה"), false, Need.TEXT, textLabel = tr("שם או טקסט"),
-            about = tr("סימנייה דקה (3×14 ס״מ) עם השם לאורכה וחור לחוט.")),
-        MEDAL(tr("מדליון דיוקן"), true, Need.IMAGE, textLabel = tr("שם על המדליון (לא חובה)"),
-            sizeLabel = tr("קוטר: %.0f מ״מ"), min = 50f, max = 100f, def = 70f,
-            about = tr("מדליון עגול עם הפנים (או החפץ) שבתמונה כתבליט, ושם מתחת. צריך את \"מפת עומק\" מהשיפורים.")),
-        PLANTER(tr("עציץ"), true, Need.IMAGE, sizeLabel = tr("קוטר: %.0f מ״מ"), min = 60f, max = 120f, def = 80f,
-            about = tr("עציץ קטן שהתמונה עוטפת אותו כתבליט. בלי חור ניקוז, מתאים לכיסוי עציץ או לצמח מלאכותי.")),
-        NIGHT(tr("מנורת לילה"), true, Need.IMAGE,
-            about = tr("ליתופן עם בסיס: מעמידים את הלוח בחריץ שבבסיס ושמים מאחוריו נר LED. מודפס בלבן.")),
-        PUZZLE(tr("פאזל"), true, Need.IMAGE, toggle = tr("יותר חלקים (4 בשורה)"), sizeLabel = tr("גודל: %.0f מ״מ"), min = 80f, max = 140f, def = 110f,
-            about = tr("התמונה כתבליט, חתוכה לחלקי פאזל שמודפסים מופרדים ומתחברים זה לזה.")),
-        SEAL(tr("חותם שעווה"), false, Need.EITHER, textLabel = tr("אות או שתיים (או בחר ציור)"),
-            sizeLabel = tr("קוטר: %.0f מ״מ"), min = 20f, max = 35f, def = 25f,
-            about = tr("חותם עגול עם ידית למכתבים. העיטור שקוע והפוך, כך שבשעווה הוא יוצא בולט וישר. מודפס בעמידה על הידית.")),
-        PETTAG(tr("תג לחיית מחמד"), false, Need.TEXT, textLabel = tr("שם החיה"), secondLabel = tr("טלפון (לא חובה)"),
-            sizeLabel = tr("רוחב: %.0f מ״מ"), min = 30f, max = 55f, def = 40f,
-            about = tr("תג בצורת עצם לקולר, עם השם, הטלפון וחור לטבעת.")),
-        BOX(tr("קופסה עם מכסה"), false, Need.NONE, textLabel = tr("שם על המכסה (לא חובה)"),
-            sizeLabel = tr("רוחב: %.0f מ״מ"), min = 50f, max = 110f, def = 70f,
-            about = tr("קופסה מרובעת ומכסה שנח על מדף פנימי. השם בולט על המכסה.")),
+    /**
+     * The texts are kept in Hebrew and translated when read ([tr]), so they follow the language
+     * even though the enum is created once.
+     */
+    enum class Kind(private val labelHe: String, val needsImage: Boolean, val need: Need = Need.OLD,
+                    private val textHe: String? = null, private val secondHe: String? = null, private val toggleHe: String? = null,
+                    private val sizeHe: String? = null, val min: Float = 0f, val max: Float = 0f, val def: Float = 0f,
+                    private val aboutHe: String = "") {
+        LITHOPHANE(he("ליתופן"), true), RELIEF(he("תבליט"), true), QR(he("קוד QR"), false),
+        NAME(he("מחזיק מפתחות"), false), COOKIE(he("חותכן עוגיות"), true), STAMP(he("חותמת"), false),
+        MOLD(he("תבנית יציקה"), true, textHe = he("כיתוב שקוע ביציקה (לא חובה)")),
+        STENCIL(he("שבלונה"), true, Need.IMAGE, sizeHe = he("גודל: %.0f מ״מ"), min = 60f, max = 180f, def = 100f,
+            aboutHe = he("לוח דק שהצורה חתוכה בו, לריסוס צבע או לפיזור קקאו ואבקת סוכר. בציור, חלקים סגורים בתוך קו ייפלו החוצה.")),
+        MAGNET(he("מגנט"), true, Need.IMAGE, sizeHe = he("גודל: %.0f מ״מ"), min = 40f, max = 90f, def = 60f,
+            aboutHe = he("האובייקט שבתמונה כלוחית צבעונית, עם שקע מאחור למגנט עגול בקוטר 10 מ״מ (מדביקים אותו).")),
+        STAND(he("מעמד לטלפון"), false, Need.NONE, textHe = he("שם על המעמד (לא חובה)"),
+            aboutHe = he("מעמד לטלפון ברוחב 60 מ״מ, מודפס על הצד בלי תמיכות. השם בולט על הדופן.")),
+        FRAME(he("מסגרת לתמונה"), false, Need.NONE, textHe = he("כיתוב על המסגרת (לא חובה)"),
+            sizeHe = he("אורך התמונה: %.0f מ״מ"), min = 90f, max = 150f, def = 130f,
+            aboutHe = he("מסגרת לתמונה מודפסת ביחס 2:3 (למשל 10×15 או 9×13), עם שקע מאחור שמחזיק אותה.")),
+        TOPPER(he("קישוט לעוגה"), false, Need.EITHER, textHe = he("שם או ברכה (או בחר תמונה)"),
+            sizeHe = he("רוחב: %.0f מ״מ"), min = 60f, max = 160f, def = 110f,
+            aboutHe = he("שם, ברכה או צורה מתמונה על מקלות שננעצים בעוגה. הקובץ אינו אישור בטיחות למזון.")),
+        PENDANT(he("תליון"), true, Need.IMAGE, toggleHe = he("זוג עגילים"), sizeHe = he("גודל: %.0f מ״מ"), min = 20f, max = 60f, def = 35f,
+            aboutHe = he("האובייקט שבתמונה כתליון עם לולאה לשרשרת. \"זוג עגילים\" מדפיס שניים, אחד הפוך מהשני.")),
+        SIGN(he("שלט"), false, Need.TEXT, textHe = he("שם או טקסט"), sizeHe = he("גובה אותיות: %.0f מ״מ"), min = 20f, max = 60f, def = 35f,
+            aboutHe = he("שלט לדלת או לחדר: אותיות גדולות בולטות על לוח. החלף פילמנט בגובה 2.4 מ״מ לשני צבעים.")),
+        BOOKMARK(he("סימנייה"), false, Need.TEXT, textHe = he("שם או טקסט"),
+            aboutHe = he("סימנייה דקה (3×14 ס״מ) עם השם לאורכה וחור לחוט.")),
+        MEDAL(he("מדליון דיוקן"), true, Need.IMAGE, textHe = he("שם על המדליון (לא חובה)"),
+            sizeHe = he("קוטר: %.0f מ״מ"), min = 50f, max = 100f, def = 70f,
+            aboutHe = he("מדליון עגול עם הפנים (או החפץ) שבתמונה כתבליט, ושם מתחת. צריך את \"מפת עומק\" מהשיפורים.")),
+        PLANTER(he("עציץ"), true, Need.IMAGE, sizeHe = he("קוטר: %.0f מ״מ"), min = 60f, max = 120f, def = 80f,
+            aboutHe = he("עציץ קטן שהתמונה עוטפת אותו כתבליט. בלי חור ניקוז, מתאים לכיסוי עציץ או לצמח מלאכותי.")),
+        NIGHT(he("מנורת לילה"), true, Need.IMAGE,
+            aboutHe = he("ליתופן עם בסיס: מעמידים את הלוח בחריץ שבבסיס ושמים מאחוריו נר LED. מודפס בלבן.")),
+        PUZZLE(he("פאזל"), true, Need.IMAGE, toggleHe = he("יותר חלקים (4 בשורה)"), sizeHe = he("גודל: %.0f מ״מ"), min = 80f, max = 140f, def = 110f,
+            aboutHe = he("התמונה כתבליט, חתוכה לחלקי פאזל שמודפסים מופרדים ומתחברים זה לזה.")),
+        SEAL(he("חותם שעווה"), false, Need.EITHER, textHe = he("אות או שתיים (או בחר ציור)"),
+            sizeHe = he("קוטר: %.0f מ״מ"), min = 20f, max = 35f, def = 25f,
+            aboutHe = he("חותם עגול עם ידית למכתבים. העיטור שקוע והפוך, כך שבשעווה הוא יוצא בולט וישר. מודפס בעמידה על הידית.")),
+        PETTAG(he("תג לחיית מחמד"), false, Need.TEXT, textHe = he("שם החיה"), secondHe = he("טלפון (לא חובה)"),
+            sizeHe = he("רוחב: %.0f מ״מ"), min = 30f, max = 55f, def = 40f,
+            aboutHe = he("תג בצורת עצם לקולר, עם השם, הטלפון וחור לטבעת.")),
+        BOX(he("קופסה עם מכסה"), false, Need.NONE, textHe = he("שם על המכסה (לא חובה)"),
+            sizeHe = he("רוחב: %.0f מ״מ"), min = 50f, max = 110f, def = 70f,
+            aboutHe = he("קופסה מרובעת ומכסה שנח על מדף פנימי. השם בולט על המכסה."));
+
+        val label get() = tr(labelHe)
+        val textLabel get() = textHe?.let { tr(it) }
+        val secondLabel get() = secondHe?.let { tr(it) }
+        val toggle get() = toggleHe?.let { tr(it) }
+        val sizeLabel get() = sizeHe?.let { tr(it) }
+        val about get() = if (aboutHe.isEmpty()) "" else tr(aboutHe)
     }
 
     class Options(
@@ -105,7 +119,10 @@ object Creations {
     private const val SIZE_MM = Printability.TARGET_MM
     private const val SAMPLES = 300 // along the longest side: 0.33 mm per sample at 100 mm
 
-    fun create(kind: Kind, image: Bitmap?, text: String, o: Options) = build(kind.label, kind.name, image) {
+    fun create(kind: Kind, image: Bitmap?, text: String, o: Options) = build(kind.label, kind.name, image) { make(kind, image, text, o) }
+
+    /** Builds the product right away, on the calling thread (also what the quality tests call). */
+    fun make(kind: Kind, image: Bitmap?, text: String, o: Options): Pair<Mesh, Bitmap> =
         when (kind) {
             Kind.LITHOPHANE -> lithophane(image!!, o)
             Kind.RELIEF -> relief(image!!, o)
@@ -130,7 +147,6 @@ object Creations {
             Kind.PETTAG -> Crafts.petTag(text, o.qrSecond, o)
             Kind.BOX -> Crafts.box(text, o)
         }
-    }
 
     /** Two-half casting mold of a finished 3D model. */
     fun moldOf(mesh: Mesh) = build(tr("תבנית משני חצאים"), "MOLD2", null) { Crafts.twoPartMold(mesh) }
@@ -142,6 +158,7 @@ object Creations {
             try {
                 val t0 = System.nanoTime()
                 val (mesh, thumb) = make()
+                MeshCheck.verify(mesh, kindName)  // never show or save an empty or broken shape
                 val seconds = (System.nanoTime() - t0) / 1e9
                 val p = AppState.saveProject(mesh, thumb, "—", label, seconds, emptyMap(),
                     name = "$label ${AppState.projects.count { it.quality == label } + 1}",
@@ -189,11 +206,11 @@ object Creations {
 
     private fun relief(src: Bitmap, o: Options): Pair<Mesh, Bitmap> {
         val app = AppState.app
-        if (!Extras.ready(app, Extras.DEPTH)) throw IllegalStateException(tr("תבליט צריך את \"מפת עומק\" מהשיפורים בהגדרות"))
+        if (!Crafts.depthReady()) throw IllegalStateException(tr("תבליט צריך את \"מפת עומק\" מהשיפורים בהגדרות"))
         val (px, w, h) = sample(src)
-        val raw = Enhance.depth(app, src, w, h)
+        val raw = Crafts.depth(src, w, h)
         val mask = if (o.flatBackground) {
-            val cut = Enhance.removeBackground(app, src) { AppState.segmenter() }
+            val cut = Crafts.cutout(src)
             val small = Bitmap.createScaledBitmap(cut, w, h, true)
             IntArray(w * h).also { small.getPixels(it, 0, w, 0, 0, w, h) }.map { Color.alpha(it) / 255f }.toFloatArray()
         } else null
@@ -272,7 +289,7 @@ object Creations {
 
     /** Silhouette of the image: the background-removal mask, or dark lines for a drawing on white. */
     private fun shape(src: Bitmap, samples: Int, removeBackground: Boolean): Templates.Mask {
-        val img = if (removeBackground) Enhance.removeBackground(AppState.app, src) { AppState.segmenter() } else src
+        val img = if (removeBackground) Crafts.cutout(src) else src
         val s = samples.toFloat() / maxOf(img.width, img.height)
         val w = (img.width * s).toInt().coerceAtLeast(8); val h = (img.height * s).toInt().coerceAtLeast(8)
         val b = Bitmap.createScaledBitmap(img, w, h, true)
@@ -294,11 +311,11 @@ object Creations {
     /** Casting mold of the picture's shape: sizeMm = longest side, reliefMm = how deep. */
     private fun mold(src: Bitmap, text: String, o: Options): Pair<Mesh, Bitmap> {
         val app = AppState.app
-        if (o.moldRelief && !Extras.ready(app, Extras.DEPTH)) throw IllegalStateException(tr("תבנית עם עומק צריכה את \"מפת עומק\" מהשיפורים בהגדרות"))
+        if (o.moldRelief && !Crafts.depthReady()) throw IllegalStateException(tr("תבנית עם עומק צריכה את \"מפת עומק\" מהשיפורים בהגדרות"))
         var m = Templates.largest(shape(src, 220, removeBackground = o.flatBackground))
         if (!o.flatBackground) m = Templates.fillHoles(m)  // a drawing: the mold is what the line encloses
         if (m.count() < 50) throw IllegalStateException(tr("לא נמצאה צורה בתמונה"))
-        val depth = if (o.moldRelief) Heightfield.normalizeDepth(Enhance.depth(app, src, m.w, m.h),
+        val depth = if (o.moldRelief) Heightfield.normalizeDepth(Crafts.depth(src, m.w, m.h),
             FloatArray(m.w * m.h) { if (m.cells[it]) 1f else 0f }) else null
         val b = m.bounds()!!
         val bw = b[2] - b[0] + 1; val bh = b[3] - b[1] + 1

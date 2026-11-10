@@ -1,0 +1,52 @@
+name: Print products QA
+
+# Makes every print product on the JVM (Robolectric), checks the geometry and the STL export, and
+# publishes the report and a picture of each product to the "qa-results" branch.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["**"]
+    paths: ["android/**", ".github/workflows/crafts-qa.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+
+      - name: Make and check every product
+        run: gradle -p android :app:testGithubDebugUnitTest --tests '*CraftsQaTest*' --no-daemon
+
+      - name: Show test failures
+        if: failure()
+        run: |
+          for f in $(find android/app/build/test-results -name '*.xml'); do
+            grep -A40 '<failure\|<error' "$f" | head -120
+          done
+
+      - name: Publish to the qa-results branch
+        if: always()
+        run: |
+          mkdir out
+          cp android/app/build/qa/* out/ 2>/dev/null || true
+          for f in $(find android/app/build/test-results -name '*CraftsQa*.xml'); do
+            grep -A60 '<failure\|<error' "$f" | head -200 > out/failure.txt || true
+          done
+          cd out
+          git init -q -b qa-results
+          git add .
+          git -c user.name="ci" -c user.email="ci@users.noreply.github.com" commit -qm "QA for ${GITHUB_SHA}" --allow-empty
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}" qa-results

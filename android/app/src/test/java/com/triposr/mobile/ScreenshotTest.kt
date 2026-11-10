@@ -186,6 +186,15 @@ class ScreenshotTest {
         AppState.createMenu = false
     }
 
+    /** Every print product's screen, and the full product menu scrolled to its end. */
+    @Test fun crafts() {
+        for (k in Creations.Kind.entries) { AppState.extraKind = k; shot("x_${k.name.lowercase()}") { com.triposr.mobile.ui.ExtraScreen() } }
+    }
+    @Test fun craftsEnglish() = english {
+        for (k in Creations.Kind.entries) { AppState.extraKind = k; shot("en_x_${k.name.lowercase()}") { com.triposr.mobile.ui.ExtraScreen() } }
+        shot("en_15_create_menu") { com.triposr.mobile.ui.CreateMenuContent() }
+    }
+
     @Test fun legal() = shot("16_legal") { com.triposr.mobile.ui.LegalScreen() }
 
     /** The same screens in English (left-to-right). */

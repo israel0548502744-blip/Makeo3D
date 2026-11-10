@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -169,7 +170,10 @@ fun CreateMenuContent() {
             .background(Brush.verticalGradient(listOf(Color(0xFF241A4D), Color(0xFF120C2C))))
             .border(1.dp, C.GlassEdge, shape)
             .clickable(remember { MutableInteractionSource() }, indication = null) {}
+            .statusBarsPadding()
             .navigationBarsPadding()
+            // The list of products is longer than the screen: the sheet scrolls.
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
