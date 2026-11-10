@@ -80,31 +80,34 @@ import kotlinx.coroutines.withContext
 fun ExtraScreen() {
     val ctx = LocalContext.current
     var kind by remember { mutableStateOf(AppState.extraKind) }
-    var image by remember { mutableStateOf<Bitmap?>(null) }
-    var text by remember { mutableStateOf("") }
-    var second by remember { mutableStateOf("") }
-    var caption by remember { mutableStateOf("") }
-    var qrType by remember { mutableStateOf(Templates.QrType.LINK) }
-    var frame by remember { mutableStateOf(true) }
-    var invert by remember { mutableStateOf(false) }
-    var maxMm by remember { mutableFloatStateOf(3f) }
-    var reliefMm by remember { mutableFloatStateOf(8f) }
-    var flatBg by remember { mutableStateOf(true) }
-    var letterMm by remember { mutableFloatStateOf(12f) }
-    var cookieMm by remember { mutableFloatStateOf(80f) }
-    var stampMm by remember { mutableFloatStateOf(50f) }
-    var keyring by remember { mutableStateOf(true) }
-    var tagStyle by remember { mutableStateOf(Templates.TagStyle.OUTLINE) }
-    var lamp by remember { mutableStateOf(false) }
-    var lampMm by remember { mutableFloatStateOf(80f) }
-    var stampImage by remember { mutableStateOf(false) }
-    var moldMm by remember { mutableFloatStateOf(12f) }
-    var moldMaster by remember { mutableStateOf(false) }
-    var moldRelief by remember { mutableStateOf(false) }
-    var wick by remember { mutableStateOf(false) }
-    var copies by remember { mutableStateOf(1) }
-    var alt by remember { mutableStateOf(false) }
-    val sizes = remember { mutableStateMapOf<Creations.Kind, Float>() }
+    // A saved product opened to be changed, or a preset: its picture, text and options fill the screen.
+    val d = remember { AppState.draft.also { AppState.draft = null }?.takeIf { it.kind == AppState.extraKind } }
+    val o0 = d?.options
+    var image by remember { mutableStateOf<Bitmap?>(d?.image) }
+    var text by remember { mutableStateOf(d?.text ?: "") }
+    var second by remember { mutableStateOf(o0?.qrSecond ?: "") }
+    var caption by remember { mutableStateOf(o0?.caption ?: "") }
+    var qrType by remember { mutableStateOf(o0?.qrType ?: Templates.QrType.LINK) }
+    var frame by remember { mutableStateOf(o0?.frame ?: true) }
+    var invert by remember { mutableStateOf(o0?.invert ?: false) }
+    var maxMm by remember { mutableFloatStateOf(o0?.maxMm ?: 3f) }
+    var reliefMm by remember { mutableFloatStateOf(o0?.reliefMm?.takeIf { kind != Creations.Kind.MOLD } ?: 8f) }
+    var flatBg by remember { mutableStateOf(o0?.flatBackground ?: true) }
+    var letterMm by remember { mutableFloatStateOf(o0?.sizeMm?.takeIf { kind == Creations.Kind.NAME } ?: 12f) }
+    var cookieMm by remember { mutableFloatStateOf(o0?.sizeMm?.takeIf { kind == Creations.Kind.COOKIE || kind == Creations.Kind.MOLD } ?: 80f) }
+    var stampMm by remember { mutableFloatStateOf(o0?.sizeMm?.takeIf { kind == Creations.Kind.STAMP } ?: 50f) }
+    var keyring by remember { mutableStateOf(o0?.keyring ?: true) }
+    var tagStyle by remember { mutableStateOf(o0?.tagStyle ?: Templates.TagStyle.OUTLINE) }
+    var lamp by remember { mutableStateOf((o0?.cylinderMm ?: 0f) > 0f) }
+    var lampMm by remember { mutableFloatStateOf(o0?.cylinderMm?.takeIf { it > 0f } ?: 80f) }
+    var stampImage by remember { mutableStateOf(o0?.stampImage ?: false) }
+    var moldMm by remember { mutableFloatStateOf(o0?.reliefMm?.takeIf { kind == Creations.Kind.MOLD } ?: 12f) }
+    var moldMaster by remember { mutableStateOf(o0?.moldMaster ?: false) }
+    var moldRelief by remember { mutableStateOf(o0?.moldRelief ?: false) }
+    var wick by remember { mutableStateOf(o0?.wick ?: false) }
+    var copies by remember { mutableStateOf(o0?.copies ?: 1) }
+    var alt by remember { mutableStateOf(o0?.alt ?: false) }
+    val sizes = remember { mutableStateMapOf<Creations.Kind, Float>().also { m -> if (o0 != null && kind.max > 0f) m[kind] = o0.sizeMm.coerceIn(kind.min, kind.max) } }
     val size = sizes[kind] ?: kind.def
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) image = Actions.loadBitmap(ctx, uri) ?: run { Actions.toast(ctx, tr("לא הצלחתי לפתוח את התמונה")); null }
@@ -123,7 +126,6 @@ fun ExtraScreen() {
         TopBar(kind.label, onBack = { AppState.back() })
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            ChoiceChips(Creations.Kind.entries.toList(), kind, { it.label }, { kind = it; AppState.extraKind = it }, icon = { it.icon() })
             Text(when (kind) {
                 Creations.Kind.LITHOPHANE -> tr("לוח דק (או מנורה גלילית) שהתמונה מופיעה בו כשמאירים מאחור. מודפס בלבן, הכי פשוט ותמיד מצליח.")
                 Creations.Kind.RELIEF -> tr("התמונה בולטת מהלוח לפי העומק שלה, עם הצבעים שלה.")
@@ -226,15 +228,17 @@ fun ExtraScreen() {
                 Creations.Kind.MOLD -> Section(title = tr("אפשרויות")) {
                     ToggleRow(tr("תבנית־אם לסיליקון"), tr("הצורה בולטת בתוך קופסה: יוצקים סיליקון ומקבלים תבנית גמישה. כבוי: יוצקים ישר לתוך ההדפסה"), moldMaster) { moldMaster = it }
                     ToggleRow(tr("הסרת רקע"), tr("לתמונה של אובייקט. כבוי: הצורה היא הקווים הכהים בציור"), flatBg) { flatBg = it }
-                    ToggleRow(tr("פנים עם עומק"), if (Extras.ready(ctx, Extras.DEPTH)) tr("היציקה יוצאת תבליט לפי העומק בתמונה. כבוי: פנים שטוחות")
-                        else tr("צריך את \"מפת עומק\" מהשיפורים בהגדרות"), moldRelief) { moldRelief = it }
                     Text(tr("גודל: %.0f מ״מ").format(cookieMm), color = C.Text, fontSize = 14.sp)
                     Slider(cookieMm, { cookieMm = (it / 5).toInt() * 5f }, valueRange = 40f..140f, colors = sliderColors())
                     Text(tr("עומק היציקה: %.0f מ״מ").format(moldMm), color = C.Text, fontSize = 14.sp)
                     Slider(moldMm, { moldMm = it.toInt().toFloat() }, valueRange = 5f..30f, colors = sliderColors())
+                    Advanced {
+                    ToggleRow(tr("פנים עם עומק"), if (Extras.ready(ctx, Extras.DEPTH)) tr("היציקה יוצאת תבליט לפי העומק בתמונה. כבוי: פנים שטוחות")
+                        else tr("צריך את \"מפת עומק\" מהשיפורים בהגדרות"), moldRelief) { moldRelief = it }
                     if (!moldMaster) ToggleRow(tr("חור לפתיל"), tr("לנרות: חור קטן בתחתית התבנית להשחלת הפתיל"), wick) { wick = it }
                     Text(tr("כמה תבניות במגש"), color = C.Text, fontSize = 14.sp)
                     ChoiceChips(listOf(1, 2, 4, 6), copies, { it.toString() }, { copies = it })
+                    }
                 }
                 Creations.Kind.QR -> {}
                 else -> if (kind.max > 0f || kind.toggle != null || kind == Creations.Kind.STENCIL || kind == Creations.Kind.MEDAL)
@@ -250,16 +254,11 @@ fun ExtraScreen() {
             }
             Text(if ((kind.need == Creations.Need.OLD && kind.needsImage && kind != Creations.Kind.COOKIE && kind != Creations.Kind.MOLD && !(kind == Creations.Kind.LITHOPHANE && lamp)) || kind == Creations.Kind.QR) tr("גודל: 100 מ״מ בצלע הארוכה. אחרי היצירה תמצא ייצוא 3MF/STL להדפסה.")
                 else tr("המודל נשמר בגודל האמיתי שבחרת. אחרי היצירה תמצא ייצוא 3MF/STL להדפסה."), color = C.Faint, fontSize = 12.sp)
-            Creations.error?.let { Text(it, color = C.Red, fontSize = 13.sp) }
+            Creations.error?.let { StatusBanner(it, BannerKind.ERROR) }
             Spacer(Modifier.height(4.dp))
         }
         Column(Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
-            if (busy != null) Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(Modifier.size(16.dp), color = C.Violet, strokeWidth = 2.dp)
-                Spacer(Modifier.width(8.dp))
-                Text(busy, color = C.Sub, fontSize = 13.sp)
-            }
+            if (busy != null) StatusBanner(busy, BannerKind.BUSY, Modifier.padding(bottom = 8.dp))
             val ready = if (kind.need != Creations.Need.OLD) when (kind.need) {
                 Creations.Need.IMAGE -> image != null
                 Creations.Need.TEXT -> text.isNotBlank()

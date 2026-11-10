@@ -156,6 +156,9 @@ class MainActivity : ComponentActivity() {
                         Screen.Extra -> com.triposr.mobile.ui.ExtraScreen()
                         Screen.Models -> ModelsScreen()
                         Screen.Legal -> LegalScreen()
+                        Screen.Make -> com.triposr.mobile.ui.MakeScreen()
+                        Screen.Category -> com.triposr.mobile.ui.CategoryScreen()
+                        Screen.More -> com.triposr.mobile.ui.MoreScreen()
                     }
                 }
                 if (screen.isRoot) BottomNav(screen)

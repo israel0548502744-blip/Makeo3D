@@ -45,6 +45,8 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.PhotoLibrary
@@ -138,20 +140,10 @@ fun BottomNav(current: Screen) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             NavItem(Icons.Rounded.Home, tr("בית"), current == Screen.Home) { AppState.navigateRoot(Screen.Home) }
-            NavItem(Icons.Rounded.GridView, tr("גלריה"), current == Screen.Projects) { AppState.navigateRoot(Screen.Projects) }
-            Spacer(Modifier.width(72.dp))
-            NavItem(Icons.Rounded.Memory, tr("מודלים"), current == Screen.Models) { AppState.navigateRoot(Screen.Models) }
+            NavItem(Icons.Rounded.Add, tr("יצירה"), current == Screen.Make) { AppState.navigateRoot(Screen.Make) }
+            NavItem(Icons.Rounded.GridView, tr("הפרויקטים"), current == Screen.Projects) { AppState.navigateRoot(Screen.Projects) }
             val errors = remember(com.triposr.mobile.Health.tick.intValue) { com.triposr.mobile.Health.errorCount() }
-            NavItem(Icons.Rounded.Settings, tr("הגדרות"), current == Screen.Settings, dot = errors > 0) { AppState.navigateRoot(Screen.Settings) }
-        }
-        Column(Modifier.align(Alignment.TopCenter).offset(y = (-14).dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
-                Modifier.size(66.dp).shadow(20.dp, CircleShape, ambientColor = C.Magenta, spotColor = C.Magenta)
-                    .clip(CircleShape).background(Brush.linearGradient(listOf(C.Purple, C.Magenta, C.Pink)))
-                    .border(1.5.dp, Color(0x55FFFFFF), CircleShape)
-                    .pressable { AppState.createMenu = !AppState.createMenu },
-                contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Rounded.Add, tr("צור"), tint = Color.White, modifier = Modifier.size(32.dp)) }
+            NavItem(Icons.Rounded.MoreHoriz, tr("עוד"), current == Screen.More, dot = errors > 0) { AppState.navigateRoot(Screen.More) }
         }
     }
 }
@@ -192,72 +184,66 @@ fun HomeScreen() {
     LaunchedEffect(status, npuStatus) {
         if (status is ModelStore.Status.Ready && npuStatus !is ModelStore.Status.Downloading && !Capabilities.probed(ctx)) startProbe(ctx)
     }
-    var i = 0
+    var query by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Spacer(Modifier.height(18.dp))
-        Logo(64)
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.enter(i++)) {
-            GradientText("Makeo 3D", 36.sp)
-            Spacer(Modifier.height(4.dp))
-            Text(tr("מתמונה אחת למודל תלת־ממד, ישירות בטלפון"), color = C.Sub, fontSize = 14.sp, textAlign = TextAlign.Center)
+        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Spacer(Modifier.height(14.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Logo(40)
+            GradientText("Makeo 3D", 24.sp)
         }
-        StatusPill(status, Modifier.enter(i++))
+        Text(tr("מה ניצור היום?"), color = C.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
 
         CrashCard()
         AppState.notice?.let { NoticeCard(it) { AppState.notice = null } }
         UpdateCard()
         if (status !is ModelStore.Status.Ready) ModelCard(status)
 
-        GradientButton(tr("צור מודל 3D"), Modifier.fillMaxWidth().enter(i++), sparkles = true,
-            enabled = status is ModelStore.Status.Ready) { AppState.startNew() }
-
+        // A model being made, or one that just finished, stays one tap away.
         val job = AppState.job
-        when {
-            job != null && AppState.isRunning -> FeatureCard(Icons.Rounded.ViewInAr, tr("יוצר מודל…"), job.status,
-                Modifier.enter(i++), onClick = { AppState.navigate(Screen.Processing) }) {
-                PreviewPanel(AppState.framed ?: AppState.input, job.overall, "${(job.overall * 100).toInt()}%")
-            }
-            job?.done == true && AppState.mesh != null -> FeatureCard(Icons.Rounded.CheckCircle, tr("המודל מוכן!"), tr("לחץ לצפייה"),
-                Modifier.enter(i++), onClick = { AppState.showResult() }) {
-                PreviewPanel(AppState.framed, 1f, "100%")
-            }
-            else -> FeatureCard(Icons.Rounded.AddPhotoAlternate, tr("תמונה לתלת־ממד"), tr("גלריה, מצלמה או קובץ"),
-                Modifier.enter(i++), onClick = { AppState.startNew() }) {
-                val last = AppState.projects.firstOrNull()
-                PreviewPanel(last?.let { rememberThumb(it) }, if (last != null) 1f else 0f, last?.name ?: tr("התחל"))
-            }
-        }
-        FeatureCard(Icons.Rounded.Layers, tr("יצירות להדפסה"), tr("מחזיק מפתחות, חותכן עוגיות, QR, ליתופן ועוד"),
-            Modifier.enter(i++), onClick = { AppState.createMenu = true }) {
-            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                IconTile(Icons.Rounded.Lightbulb, 40.dp, C.Primary)
-                IconTile(Icons.Rounded.Terrain, 40.dp, C.Accent)
-                IconTile(Icons.Rounded.QrCode2, 40.dp, C.Primary)
-            }
-        }
-        FeatureCard(Icons.Rounded.GridView, tr("הגלריה שלי"), tr("{0} מודלים שמורים", AppState.projects.size),
-            Modifier.enter(i++), onClick = { AppState.navigateRoot(Screen.Projects) }) {
-            ThumbStack(AppState.projects.take(3))
-        }
-        FeatureCard(Icons.Rounded.Memory, tr("מודלים ומעבדים"), processorSummary(ctx),
-            Modifier.enter(i++), onClick = { AppState.navigateRoot(Screen.Models) }) {
-            ProcessorPanel()
+        if (job != null && AppState.isRunning) FeatureCard(Icons.Rounded.ViewInAr, tr("יוצר מודל…"), job.status,
+            onClick = { AppState.navigate(Screen.Processing) }) {
+            PreviewPanel(AppState.framed ?: AppState.input, job.overall, "${(job.overall * 100).toInt()}%")
+        } else if (job?.done == true && AppState.mesh != null) FeatureCard(Icons.Rounded.CheckCircle, tr("המודל מוכן!"), tr("לחץ לצפייה"),
+            onClick = { AppState.showResult() }) {
+            PreviewPanel(AppState.framed, 1f, "100%")
         }
 
-        if (AppState.projects.size > 3) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().enter(i++)) {
-                Text(tr("יצירות אחרונות"), color = C.Text, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text(tr("הכל"), color = C.Violet, fontSize = 14.sp, modifier = Modifier.pressable { AppState.navigateRoot(Screen.Projects) })
+        SearchField(query, tr("חיפוש יצירה… למשל \"מגנט\"")) { query = it }
+        if (query.isNotBlank()) SearchResults(query)
+        else {
+            PhotoHero()
+            for (c in Category.entries) CategoryRow(c)
+
+            val used = remember(AppState.projects.size) { AppState.mostUsed(3).mapNotNull { Catalog.find(it) } }
+            if (used.isNotEmpty()) {
+                Text(tr("השתמשת לאחרונה"), color = C.Sub, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for (e in used) Column(Modifier.weight(1f).glass(RoundedCornerShape(18.dp)).pressable(onClick = e.open).padding(vertical = 12.dp, horizontal = 6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally) {
+                        IconTile(e.icon, 36.dp)
+                        Spacer(Modifier.height(6.dp))
+                        Text(e.label(), color = C.Text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    repeat(3 - used.size) { Spacer(Modifier.weight(1f)) }
+                }
             }
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                items(AppState.projects.take(10), key = { it.id }) { p -> ProjectThumb(p, Modifier.width(132.dp)) }
+
+            if (AppState.projects.isNotEmpty()) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text(tr("המשך מאיפה שעצרת"), color = C.Sub, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Text(tr("הכל"), color = C.Violet, fontSize = 14.sp, modifier = Modifier.pressable { AppState.navigateRoot(Screen.Projects) })
+                }
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    items(AppState.projects.take(10), key = { it.id }) { p -> ProjectThumb(p, Modifier.width(132.dp)) }
+                }
             }
         }
         Spacer(Modifier.height(16.dp))
     }
 }
 
+@Composable
 private fun processorSummary(ctx: android.content.Context): String {
     if (ProbeUi.running) return tr("בודק את המעבדים…")
     if (!Capabilities.probed(ctx)) return tr("ייבדק אחרי הורדת המודל")

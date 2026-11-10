@@ -39,7 +39,7 @@ object Creations {
         NAME(he("מחזיק מפתחות"), false), COOKIE(he("חותכן עוגיות"), true), STAMP(he("חותמת"), false),
         MOLD(he("תבנית יציקה"), true, textHe = he("כיתוב שקוע ביציקה (לא חובה)")),
         STENCIL(he("שבלונה"), true, Need.IMAGE, sizeHe = he("גודל: %.0f מ״מ"), min = 60f, max = 180f, def = 100f,
-            aboutHe = he("לוח דק שהצורה חתוכה בו, לריסוס צבע או לפיזור קקאו ואבקת סוכר. בציור, חלקים סגורים בתוך קו ייפלו החוצה.")),
+            aboutHe = he("לוח דק שהצורה חתוכה בו, לריסוס צבע או לפיזור קקאו ואבקת סוכר. חלקים סגורים בתוך קו מוחזקים בגשרים דקים.")),
         MAGNET(he("מגנט"), true, Need.IMAGE, sizeHe = he("גודל: %.0f מ״מ"), min = 40f, max = 90f, def = 60f,
             aboutHe = he("האובייקט שבתמונה כלוחית צבעונית, עם שקע מאחור למגנט עגול בקוטר 10 מ״מ (מדביקים אותו).")),
         STAND(he("מעמד לטלפון"), false, Need.NONE, textHe = he("שם על המעמד (לא חובה)"),
@@ -119,7 +119,26 @@ object Creations {
     private const val SIZE_MM = Printability.TARGET_MM
     private const val SAMPLES = 300 // along the longest side: 0.33 mm per sample at 100 mm
 
-    fun create(kind: Kind, image: Bitmap?, text: String, o: Options) = build(kind.label, kind.name, image) { make(kind, image, text, o) }
+    fun create(kind: Kind, image: Bitmap?, text: String, o: Options) =
+        build(kind.label, kind.name, image, encode(text, o)) { make(kind, image, text, o) }
+
+    /** A product's text and options as JSON, kept with the project so it can be changed later. */
+    fun encode(text: String, o: Options): String = org.json.JSONObject().apply {
+        put("text", text); put("frame", o.frame); put("maxMm", o.maxMm.toDouble()); put("invert", o.invert)
+        put("reliefMm", o.reliefMm.toDouble()); put("flatBackground", o.flatBackground); put("sizeMm", o.sizeMm.toDouble())
+        put("keyring", o.keyring); put("tagStyle", o.tagStyle.name); put("cylinderMm", o.cylinderMm.toDouble())
+        put("stampImage", o.stampImage); put("qrType", o.qrType.name); put("qrSecond", o.qrSecond); put("caption", o.caption)
+        put("moldMaster", o.moldMaster); put("moldRelief", o.moldRelief); put("wick", o.wick); put("copies", o.copies); put("alt", o.alt)
+    }.toString()
+
+    fun decode(params: String): Pair<String, Options>? = runCatching {
+        val j = org.json.JSONObject(params)
+        j.optString("text") to Options(j.getBoolean("frame"), j.getDouble("maxMm").toFloat(), j.getBoolean("invert"),
+            j.getDouble("reliefMm").toFloat(), j.getBoolean("flatBackground"), j.getDouble("sizeMm").toFloat(), j.getBoolean("keyring"),
+            Templates.TagStyle.valueOf(j.getString("tagStyle")), j.getDouble("cylinderMm").toFloat(), j.getBoolean("stampImage"),
+            Templates.QrType.valueOf(j.getString("qrType")), j.optString("qrSecond"), j.optString("caption"),
+            j.optBoolean("moldMaster"), j.optBoolean("moldRelief"), j.optBoolean("wick"), j.optInt("copies", 1), j.optBoolean("alt"))
+    }.getOrNull()
 
     /** Builds the product right away, on the calling thread (also what the quality tests call). */
     fun make(kind: Kind, image: Bitmap?, text: String, o: Options): Pair<Mesh, Bitmap> =
@@ -149,9 +168,9 @@ object Creations {
         }
 
     /** Two-half casting mold of a finished 3D model. */
-    fun moldOf(mesh: Mesh) = build(tr("תבנית משני חצאים"), "MOLD2", null) { Crafts.twoPartMold(mesh) }
+    fun moldOf(mesh: Mesh) = build(tr("תבנית משני חצאים"), "MOLD2", null, "") { Crafts.twoPartMold(mesh) }
 
-    private fun build(label: String, kindName: String, image: Bitmap?, make: () -> Pair<Mesh, Bitmap>) {
+    private fun build(label: String, kindName: String, image: Bitmap?, params: String, make: () -> Pair<Mesh, Bitmap>) {
         if (busy != null) return
         busy = tr("יוצר {0}…", label); error = null
         AppState.scope.launch {
@@ -162,7 +181,8 @@ object Creations {
                 val seconds = (System.nanoTime() - t0) / 1e9
                 val p = AppState.saveProject(mesh, thumb, "—", label, seconds, emptyMap(),
                     name = "$label ${AppState.projects.count { it.quality == label } + 1}",
-                    source = image, kind = kindName)
+                    source = image, kind = kindName, params = params)
+                AppState.used(kindName)
                 CrashLog.log("Created $kindName in %.1fs: ${mesh.triangleCount} triangles".format(seconds))
                 withContext(Dispatchers.Main) { AppState.showNew(mesh, p) }
             } catch (e: Throwable) {

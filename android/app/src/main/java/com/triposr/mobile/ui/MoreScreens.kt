@@ -140,6 +140,8 @@ fun ResultScreen() {
     var thinPreview by remember { mutableStateOf<Mesh?>(null) }
     var showThin by remember { mutableStateOf(false) }
     var baseCut by remember { mutableFloatStateOf(0f) }
+    var tab by remember { mutableStateOf(0) }
+    var video by remember { mutableStateOf<Float?>(null) }
     LaunchedEffect(mesh, baseCut) {
         print = null; thinPreview = null; showThin = false
         Printability.baseCutMm = baseCut
@@ -189,9 +191,7 @@ fun ResultScreen() {
             CircleIcon(Icons.Rounded.Edit, tr("שנה שם")) { renaming = true }
             CircleIcon(Icons.Rounded.Share, tr("שתף")) { export { Actions.share(ctx, it, format) } }
         }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Box(Modifier.fillMaxWidth().height(440.dp).enter(0).glass(RoundedCornerShape(28.dp))) {
+            Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(300.dp).glass(RoundedCornerShape(28.dp))) {
                 // Screenshot tests (inspection mode) have no OpenGL: show the mesh's thumbnail instead.
                 if (androidx.compose.ui.platform.LocalInspectionMode.current) {
                     rememberThumb(project)?.let { androidx.compose.foundation.Image(it.asImageBitmap(), null,
@@ -205,15 +205,28 @@ fun ResultScreen() {
                     },
                     onRelease = { it.onPause() },
                 )
-                Column(Modifier.align(Alignment.TopStart).padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ViewToggle(Icons.Rounded.Grid4x4, tr("רשת"), wire) { wire = !wire }
-                    ViewToggle(Icons.Rounded.Palette, tr("צבע"), colors) { colors = !colors }
-                    ViewToggle(Icons.Rounded.Lightbulb, tr("תאורה"), light) { light = !light }
-                    ViewToggle(Icons.Rounded.GridOn, tr("רצפה"), grid) { grid = !grid }
-                    ViewToggle(Icons.Rounded.Autorenew, tr("סיבוב"), rotate) { rotate = !rotate }
-                    ViewToggle(Icons.Rounded.CenterFocusStrong, tr("איפוס"), false) { view?.resetView() }
+                print?.report?.sizeMm?.let { sz ->
+                    Text(tr("{0} × {1} × {2} מ״מ", sz[0].roundToInt(), sz[1].roundToInt(), sz[2].roundToInt()), color = C.Sub, fontSize = 12.sp,
+                        modifier = Modifier.align(Alignment.BottomStart).padding(12.dp).clip(RoundedCornerShape(10.dp))
+                            .background(C.Card.copy(alpha = 0.8f)).padding(horizontal = 10.dp, vertical = 4.dp))
                 }
             }
+        Spacer(Modifier.height(10.dp))
+        val printOk = print?.report?.watertight
+        val tabs = listOf(tr("תצוגה"), tr("עריכה"), tr("בדיקת הדפסה") + when (printOk) { true -> " ✓"; false -> " !"; null -> "" }, tr("ייצוא"))
+        Box(Modifier.padding(horizontal = 20.dp)) { Segmented(tabs.indices.toList(), tab, { tabs[it] }, { tab = it }) }
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            when (tab) {
+                0 -> {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        ViewToggle(Icons.Rounded.Grid4x4, tr("רשת"), wire) { wire = !wire }
+                        ViewToggle(Icons.Rounded.Palette, tr("צבע"), colors) { colors = !colors }
+                        ViewToggle(Icons.Rounded.Lightbulb, tr("תאורה"), light) { light = !light }
+                        ViewToggle(Icons.Rounded.GridOn, tr("רצפה"), grid) { grid = !grid }
+                        ViewToggle(Icons.Rounded.Autorenew, tr("סיבוב"), rotate) { rotate = !rotate }
+                        ViewToggle(Icons.Rounded.CenterFocusStrong, tr("איפוס"), false) { view?.resetView() }
+                    }
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Chip(project.name, C.Text)
                 Chip(tr("{0} פוליגונים", "%,d".format(mesh.triangleCount)))
@@ -225,15 +238,6 @@ fun ResultScreen() {
                 exportTime?.let { Chip(it, C.Orange) }
                 Chip(project.backend, C.Orange)
             }
-            if (project.group != "craft") SoftButton(tr("צור מחדש מאותה תמונה"), Modifier.fillMaxWidth(), Icons.Rounded.Autorenew) {
-                AppState.recreate(project)
-            }
-            if (project.group != "craft") {
-                SoftButton(Creations.busy ?: tr("תבנית יציקה משני חצאים"), Modifier.fillMaxWidth(), Icons.Rounded.Science,
-                    enabled = Creations.busy == null) { Creations.moldOf(mesh) }
-                Creations.error?.let { Text(it, color = C.Red, fontSize = 13.sp) }
-            }
-            var video by remember { mutableStateOf<Float?>(null) }
             SoftButton(video?.let { tr("מכין סרטון… {0}%", (it * 100).toInt()) } ?: tr("שתף סרטון (טיקטוק, אינסטגרם)"),
                 Modifier.fillMaxWidth(), Icons.Rounded.Movie, enabled = video == null) {
                 video = 0f
@@ -254,6 +258,18 @@ fun ResultScreen() {
                 }
             }
 
+                }
+                1 -> {
+                    if (project.group == "craft" && project.params.isNotEmpty())
+                        SoftButton(tr("שנה מידות, טקסט ואפשרויות"), Modifier.fillMaxWidth(), Icons.Rounded.Tune) { AppState.editAgain(project) }
+            if (project.group != "craft") SoftButton(tr("צור מחדש מאותה תמונה"), Modifier.fillMaxWidth(), Icons.Rounded.Autorenew) {
+                AppState.recreate(project)
+            }
+            if (project.group != "craft") {
+                SoftButton(Creations.busy ?: tr("תבנית יציקה משני חצאים"), Modifier.fillMaxWidth(), Icons.Rounded.Science,
+                    enabled = Creations.busy == null) { Creations.moldOf(mesh) }
+                Creations.error?.let { Text(it, color = C.Red, fontSize = 13.sp) }
+            }
             Section(title = tr("עריכה")) {
                 Text(tr("החלקה: {0}", smoothIt.roundToInt()), color = C.Sub, fontSize = 13.sp)
                 Slider(smoothIt, { smoothIt = it }, valueRange = 0f..10f, colors = sliderColors())
@@ -281,6 +297,8 @@ fun ResultScreen() {
                 }
             }
 
+                }
+                2 -> {
             PrintSection(print, showThin, busy, baseCut, onBaseCut = { baseCut = it },
                 onShowThin = { on ->
                     val pm = print
@@ -289,6 +307,8 @@ fun ResultScreen() {
                 },
                 onExport = { f -> export(f) { Actions.share(ctx, it, f) } })
 
+                }
+                else -> {
             Section(title = tr("ייצוא")) {
                 Segmented(formats, format, { it.label }, { format = it })
                 Text(when (format) {
@@ -304,6 +324,7 @@ fun ResultScreen() {
                 }, color = C.Sub, fontSize = 12.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     GradientButton(tr("שתף מודל"), Modifier.weight(1f), Icons.Rounded.Share, enabled = !busy) {
+                        if (format == ExportFormat.STL || format == ExportFormat.THREE_MF) AppState.printFormat = format.name
                         export { Actions.share(ctx, it, format) }
                     }
                     SoftButton(tr("שמור"), Modifier.weight(0.8f), Icons.Rounded.Download, enabled = !busy) {
@@ -322,7 +343,16 @@ fun ResultScreen() {
                     export(ExportFormat.GLB) { Actions.openExternal(ctx, it) }
                 }
             }
-            Spacer(Modifier.height(8.dp))
+                }
+            }
+        }
+        // The main action stays within reach on every tab: the print format used last.
+        val quick = formats.firstOrNull { it.name == AppState.printFormat } ?: formats.firstOrNull { it == ExportFormat.THREE_MF } ?: formats.first()
+        Row(Modifier.padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            GradientButton(tr("ייצוא להדפסה ({0})", quick.label), Modifier.weight(1f), Icons.Rounded.Download, enabled = !busy) {
+                export(quick) { Actions.share(ctx, it, quick) }
+            }
+            if (tab != 3) SoftButton(tr("עוד"), Modifier.width(88.dp)) { tab = 3 }
         }
     }
 
@@ -432,7 +462,7 @@ fun ProjectsScreen() {
         (tab.isEmpty() || it.group == tab) && (query.isBlank() || it.name.contains(query, ignoreCase = true))
     }
     Column(Modifier.fillMaxSize()) {
-        TopBar(tr("הגלריה שלי"))
+        TopBar(tr("הפרויקטים שלי"))
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             for ((key, label) in listOf("" to tr("הכל"), "sr" to tr("מהיר (TripoSR)"), "sg" to tr("מדויק (TripoSG)"), "craft" to tr("יצירות להדפסה"))) {
@@ -504,7 +534,7 @@ fun SettingsScreen() {
     val errors = problems.count { it.level == Health.Level.ERROR }
 
     Column(Modifier.fillMaxSize()) {
-        TopBar(tr("הגדרות"))
+        TopBar(tr("הגדרות"), onBack = if (AppState.backStack.size > 1) ({ AppState.back() }) else null)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Section(Modifier.enter(0), title = tr("תמיכה ומשוב")) {

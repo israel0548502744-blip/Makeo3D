@@ -228,7 +228,7 @@ fun ModelsScreen() {
     val usedMb = remember(status, npu, sg) { packs.sumOf { runCatching { ModelStore.sizeOnDisk(ctx, it) }.getOrDefault(0L) } shr 20 }
 
     Column(Modifier.fillMaxSize()) {
-        TopBar(tr("מודלים"))
+        TopBar(tr("מודלים ומעבדים"), onBack = if (AppState.backStack.size > 1) ({ AppState.back() }) else null)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(Modifier.fillMaxWidth().glass().padding(16.dp).enter(0), verticalAlignment = Alignment.CenterVertically) {
@@ -402,4 +402,4 @@ fun RetiredScreen(r: com.triposr.mobile.RemoteConfig.Retired) {
 }
 
 /** True when this screen shows the bottom navigation bar. */
-val Screen.isRoot: Boolean get() = this in listOf(Screen.Home, Screen.Projects, Screen.Models, Screen.Settings)
+val Screen.isRoot: Boolean get() = this in listOf(Screen.Home, Screen.Make, Screen.Projects, Screen.More)

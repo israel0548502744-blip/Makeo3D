@@ -31,6 +31,11 @@ sealed interface Screen {
     data object Extra : Screen
     data object Models : Screen
     data object Legal : Screen
+    /** Everything that can be made, in groups. */
+    data object Make : Screen
+    /** One group of products ([AppState.category]). */
+    data object Category : Screen
+    data object More : Screen
 }
 
 data class JobState(
@@ -86,6 +91,8 @@ data class Project(
     val timings: Map<String, Double> = emptyMap(),
     /** TRIPOSR, TRIPOSG or a Creations.Kind name; inferred for projects saved before it existed. */
     val kind: String = "",
+    /** A print product's text and options (JSON), so it can be opened again and changed. */
+    val params: String = "",
 ) {
     /** Gallery tab: "sr", "sg" or "craft". */
     val group: String get() = when {
@@ -126,6 +133,37 @@ object AppState {
     var extraKind by mutableStateOf(Creations.Kind.LITHOPHANE)
     /** 0 = terms, 1 = privacy, 2 = open-source licenses. */
     var legalTab by mutableIntStateOf(0)
+
+    /** The group the Category screen shows (a ui Category name). */
+    var category by mutableStateOf("PHOTO")
+
+    fun openCategory(name: String) { category = name; navigate(Screen.Category) }
+
+    /** What the product screen opens with: a saved product being changed, or a preset. Taken once. */
+    class Draft(val kind: Creations.Kind, val text: String, val options: Creations.Options, val image: Bitmap?)
+    var draft: Draft? = null
+
+    /** Opens a saved print product in its screen again, with the text, picture and options it was made with. */
+    fun editAgain(p: Project) {
+        scope.launch {
+            val kind = runCatching { Creations.Kind.valueOf(p.kind) }.getOrNull() ?: return@launch
+            val (text, options) = Creations.decode(p.params) ?: return@launch
+            val image = withContext(Dispatchers.IO) { File(p.dir(app), "source.jpg").takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.path) } }
+            withContext(Dispatchers.Main) { draft = Draft(kind, text, options, image); openExtra(kind) }
+        }
+    }
+
+    /** Counts how often each thing is made, for "used lately" on the home screen. */
+    fun used(id: String) { prefs().edit().putInt("used_$id", prefs().getInt("used_$id", 0) + 1).putLong("usedAt_$id", System.currentTimeMillis()).apply() }
+
+    /** Ids made most often (latest first among equals). */
+    fun mostUsed(n: Int): List<String> = prefs().all.keys.filter { it.startsWith("used_") }.map { it.removePrefix("used_") }
+        .sortedWith(compareByDescending<String> { prefs().getInt("used_$it", 0) }.thenByDescending { prefs().getLong("usedAt_$it", 0) }).take(n)
+
+    /** The print format the export button offers: the one used last. */
+    var printFormat: String
+        get() = prefs().getString("print_format", ExportFormat.THREE_MF.name)!!
+        set(v) { prefs().edit().putString("print_format", v).apply() }
 
     fun openExtra(kind: Creations.Kind) {
         createMenu = false
@@ -452,10 +490,10 @@ object AppState {
 
     fun saveProject(mesh: Mesh, thumb: Bitmap, backend: String, quality: String, seconds: Double,
                     timings: Map<String, Double>, name: String = tr("מודל {0}", projects.size + 1),
-                    source: Bitmap? = null, kind: String = ""): Project {
+                    source: Bitmap? = null, kind: String = "", params: String = ""): Project {
         val id = System.currentTimeMillis().toString()
         val p = Project(id, name, System.currentTimeMillis(), backend, quality,
-            seconds, mesh.vertexCount, mesh.triangleCount, timings, kind)
+            seconds, mesh.vertexCount, mesh.triangleCount, timings, kind, params)
         val dir = p.dir(app).apply { mkdirs() }
         source?.let { src ->
             val s = minOf(1f, 1536f / maxOf(src.width, src.height))
@@ -477,7 +515,7 @@ object AppState {
             put("name", p.name); put("created", p.created); put("backend", p.backend)
             put("quality", p.quality); put("seconds", p.seconds)
             put("vertices", p.vertices); put("triangles", p.triangles)
-            put("timings", JSONObject(p.timings)); put("kind", p.kind)
+            put("timings", JSONObject(p.timings)); put("kind", p.kind); put("params", p.params)
         }.toString())
     }
 
@@ -490,7 +528,7 @@ object AppState {
                 val timings = t?.keys()?.asSequence()?.associateWith { t.getDouble(it) } ?: emptyMap()
                 Project(dir.name, j.getString("name"), j.getLong("created"), j.optString("backend"),
                     j.optString("quality"), j.optDouble("seconds"), j.optInt("vertices"), j.optInt("triangles"), timings,
-                    j.optString("kind"))
+                    j.optString("kind"), j.optString("params"))
             }.getOrNull()
         }?.sortedByDescending { it.created } ?: emptyList()
         synchronized(projects) { projects.clear(); projects.addAll(list) }

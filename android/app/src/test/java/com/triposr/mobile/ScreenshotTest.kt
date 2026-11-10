@@ -189,6 +189,27 @@ class ScreenshotTest {
         AppState.createMenu = false
     }
 
+    /** The new navigation: Make, a group, More, in Hebrew, English and the light look. */
+    @Test fun navigation() {
+        shot("20_make", Screen.Make) { com.triposr.mobile.ui.MakeScreen() }
+        AppState.category = "TEXT"; shot("21_category") { com.triposr.mobile.ui.CategoryScreen() }
+        AppState.category = "MOLD"; shot("22_category_molds") { com.triposr.mobile.ui.CategoryScreen() }
+        shot("23_more", Screen.More) { com.triposr.mobile.ui.MoreScreen() }
+        com.triposr.mobile.ui.Appearance.set(ctx, com.triposr.mobile.ui.Look.LIGHT)
+        try {
+            shot("light_20_make", Screen.Make) { com.triposr.mobile.ui.MakeScreen() }
+            AppState.category = "PHOTO"; shot("light_21_category") { com.triposr.mobile.ui.CategoryScreen() }
+            shot("light_23_more", Screen.More) { com.triposr.mobile.ui.MoreScreen() }
+        } finally { com.triposr.mobile.ui.Appearance.set(ctx, com.triposr.mobile.ui.Look.DARK) }
+    }
+    @Test fun navigationEnglish() = english {
+        shot("en_20_make", Screen.Make) { com.triposr.mobile.ui.MakeScreen() }
+        AppState.category = "PHOTO"; shot("en_21_category") { com.triposr.mobile.ui.CategoryScreen() }
+        shot("en_23_more", Screen.More) { com.triposr.mobile.ui.MoreScreen() }
+        val m = sphere(); AppState.mesh = m; AppState.originalMesh = m; AppState.project = AppState.projects.first()
+        shot("en_06_result") { ResultScreen() }
+    }
+
     /** The main screens in the light look. */
     @Test fun light() {
         com.triposr.mobile.ui.Appearance.set(ctx, com.triposr.mobile.ui.Look.LIGHT)
