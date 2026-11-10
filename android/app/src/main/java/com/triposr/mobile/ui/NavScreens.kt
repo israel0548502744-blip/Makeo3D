@@ -16,7 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -132,7 +132,7 @@ fun OpenRow(icon: ImageVector, title: String, detail: String, warm: Boolean = fa
             Text(title, color = C.Text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             if (detail.isNotEmpty()) Text(detail, color = C.Sub, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, null, tint = C.Faint, modifier = Modifier.size(22.dp))
+        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = C.Faint, modifier = Modifier.size(22.dp))
     }
 }
 

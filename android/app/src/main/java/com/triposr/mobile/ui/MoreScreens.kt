@@ -352,7 +352,7 @@ fun ResultScreen() {
             GradientButton(tr("ייצוא להדפסה ({0})", quick.label), Modifier.weight(1f), Icons.Rounded.Download, enabled = !busy) {
                 export(quick) { Actions.share(ctx, it, quick) }
             }
-            if (tab != 3) SoftButton(tr("עוד"), Modifier.width(88.dp)) { tab = 3 }
+            if (tab != 3) SoftButton(tr("פורמטים"), Modifier.width(112.dp)) { tab = 3 }
         }
     }
 
