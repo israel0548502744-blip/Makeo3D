@@ -16,7 +16,7 @@ import kotlinx.coroutines.withContext
 /**
  * Print products that don't need the 3D model: lithophane (light shines through a photo),
  * relief (photo raised by its depth, needs the depth extra), QR code plates (link, Wi-Fi,
- * WhatsApp...), name keychains, cookie cutters and stamps.
+ * WhatsApp...), name keychains, cookie cutters, stamps and casting molds.
  * Photo products are 100 mm on the longest side; templates keep the size the user picked
  * (Mesh.sizeMm), and the print export uses that size, so thicknesses stay exactly as designed.
  */
@@ -24,6 +24,7 @@ object Creations {
     enum class Kind(val label: String, val needsImage: Boolean) {
         LITHOPHANE(tr("ליתופן"), true), RELIEF(tr("תבליט"), true), QR(tr("קוד QR"), false),
         NAME(tr("מחזיק מפתחות"), false), COOKIE(tr("חותכן עוגיות"), true), STAMP(tr("חותמת"), false),
+        MOLD(tr("תבנית יציקה"), true),
     }
 
     class Options(
@@ -43,6 +44,10 @@ object Creations {
         val qrType: Templates.QrType = Templates.QrType.LINK,
         val qrSecond: String = "",
         val caption: String = "",
+        /** Casting mold: a master to pour silicone over (false: pour straight into the print). */
+        val moldMaster: Boolean = false,
+        /** Casting mold: the face follows the picture's depth (needs the depth extra). */
+        val moldRelief: Boolean = false,
     )
 
     /** Status line while something is being built, null when idle. */
@@ -66,6 +71,7 @@ object Creations {
                     Kind.NAME -> nameTag(text, o)
                     Kind.COOKIE -> cookie(image!!, o)
                     Kind.STAMP -> stamp(image, text, o)
+                    Kind.MOLD -> mold(image!!, o)
                 }
                 val seconds = (System.nanoTime() - t0) / 1e9
                 val p = AppState.saveProject(mesh, thumb, "—", kind.label, seconds, emptyMap(),
@@ -214,6 +220,20 @@ object Creations {
         val b = m.bounds()!!
         val cell = o.sizeMm / maxOf(b[2] - b[0] + 1, b[3] - b[1] + 1)
         return Templates.cookieCutter(m, cell) to preview(m)
+    }
+
+    /** Casting mold of the picture's shape: sizeMm = longest side, reliefMm = how deep. */
+    private fun mold(src: Bitmap, o: Options): Pair<Mesh, Bitmap> {
+        val app = AppState.app
+        if (o.moldRelief && !Extras.ready(app, Extras.DEPTH)) throw IllegalStateException(tr("תבנית עם עומק צריכה את \"מפת עומק\" מהשיפורים בהגדרות"))
+        var m = Templates.largest(shape(src, 220, removeBackground = o.flatBackground))
+        if (!o.flatBackground) m = Templates.fillHoles(m)  // a drawing: the mold is what the line encloses
+        if (m.count() < 50) throw IllegalStateException(tr("לא נמצאה צורה בתמונה"))
+        val depth = if (o.moldRelief) Heightfield.normalizeDepth(Enhance.depth(app, src, m.w, m.h),
+            FloatArray(m.w * m.h) { if (m.cells[it]) 1f else 0f }) else null
+        val b = m.bounds()!!
+        val cell = o.sizeMm / maxOf(b[2] - b[0] + 1, b[3] - b[1] + 1)
+        return Templates.castingMold(m, depth, cell, o.reliefMm, o.moldMaster) to preview(m)
     }
 
     private fun stamp(src: Bitmap?, text: String, o: Options): Pair<Mesh, Bitmap> {

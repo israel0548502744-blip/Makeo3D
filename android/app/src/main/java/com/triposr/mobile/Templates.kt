@@ -158,6 +158,45 @@ object Templates {
         return Heightfield.columns(heights, m.w, m.h, cellMm) { if (m.cells[it]) DARK else LIGHT }
     }
 
+    /**
+     * Casting mold for a silhouette, [cavityMm] deep, with slanted sides so the cast comes out.
+     * Direct mold ([master] false): a block with the shape sunk into it, mirrored, to pour wax,
+     * soap, plaster or resin into. Master ([master] true): the shape standing in a walled box,
+     * to pour silicone over; the silicone is then the mold.
+     * [depth] (0..1 per cell of [shape], 1 = nearest) makes the face follow the picture's depth.
+     */
+    fun castingMold(shape: Mask, depth: FloatArray?, cellMm: Float, cavityMm: Float, master: Boolean,
+                    wallMm: Float = 4f, floorMm: Float = 2.5f, gapMm: Float = 7f, rimMm: Float = 6f): Mesh {
+        val b = shape.bounds()!!
+        val bw = b[2] - b[0] + 1; val bh = b[3] - b[1] + 1
+        val wall = (wallMm / cellMm).roundToInt() + 1
+        val pad = wall + if (master) (gapMm / cellMm).roundToInt() else 1
+        val w = bw + 2 * pad; val h = bh + 2 * pad
+        // Source cell of each grid cell; the direct mold is mirrored so the cast reads right.
+        fun src(i: Int): Int {
+            val x = i % w - pad; val y = i / w - pad
+            if (x !in 0 until bw || y !in 0 until bh) return -1
+            return (b[1] + y) * shape.w + b[0] + if (master) x else bw - 1 - x
+        }
+        val inside = Mask(w, h, BooleanArray(w * h) { src(it).let { j -> j >= 0 && shape.cells[j] } })
+        val edge = distanceOutside(Mask(w, h, BooleanArray(w * h) { !inside.cells[it] }))  // cells from the outline, inward
+        val slope = 7f  // mm of height per mm inward: sides about 8 degrees off vertical
+        val top = floorMm + cavityMm
+        val heights = FloatArray(w * h) { i ->
+            val near = depth?.get(src(i).coerceAtLeast(0)) ?: 1f  // 1 = the part closest to the camera
+            val run = (edge[i] - 0.5f) * cellMm * slope
+            if (master) {
+                val x = i % w; val y = i / w
+                when {
+                    minOf(x, y, w - 1 - x, h - 1 - y) < wall -> top + rimMm
+                    inside.cells[i] -> min(floorMm + cavityMm * (0.4f + 0.6f * near), floorMm + run)
+                    else -> floorMm
+                }
+            } else if (inside.cells[i]) max(floorMm + cavityMm * 0.6f * (1f - near), top - run) else top
+        }
+        return Heightfield.smooth(heights, w, h, cellMm)
+    }
+
     // ------------------------------------------------------------------ QR with a caption
 
     /**

@@ -97,6 +97,9 @@ fun ExtraScreen() {
     var lamp by remember { mutableStateOf(false) }
     var lampMm by remember { mutableFloatStateOf(80f) }
     var stampImage by remember { mutableStateOf(false) }
+    var moldMm by remember { mutableFloatStateOf(12f) }
+    var moldMaster by remember { mutableStateOf(false) }
+    var moldRelief by remember { mutableStateOf(false) }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) image = Actions.loadBitmap(ctx, uri) ?: run { Actions.toast(ctx, tr("לא הצלחתי לפתוח את התמונה")); null }
     }
@@ -124,6 +127,8 @@ fun ExtraScreen() {
                     tr("הקובץ אינו אישור בטיחות למזון: הבטיחות תלויה בחומר, במדפסת ובניקוי.")
                 Creations.Kind.STAMP -> tr("חותמת לעוגיות, בצק, חימר או שעווה. ההדפסה הפוכה (מראה), כך שהחותם יוצא נכון. ") +
                     tr("במגע עם מזון: הבטיחות תלויה בחומר, במדפסת ובניקוי.")
+                Creations.Kind.MOLD -> tr("תבנית בצורה של האובייקט או הציור שבתמונה. מדפיסים ויוצקים פנימה שעוות נרות, סבון, גבס, בטון או שרף. ") +
+                    tr("הדפנות משופעות כדי שהיציקה תשתחרר; כדאי למרוח חומר מפריד (שמן או וזלין). לשעווה חמה עדיף PETG, כי PLA מתרכך בחום. לא למזון.")
             }, color = C.Sub, fontSize = 13.sp)
 
             when (kind) {
@@ -209,9 +214,19 @@ fun ExtraScreen() {
                     Text(tr("אורך: %.0f מ״מ").format(stampMm), color = C.Text, fontSize = 14.sp)
                     Slider(stampMm, { stampMm = (it / 5).toInt() * 5f }, valueRange = 25f..120f, colors = sliderColors())
                 }
+                Creations.Kind.MOLD -> Section(title = tr("אפשרויות")) {
+                    ToggleRow(tr("תבנית־אם לסיליקון"), tr("הצורה בולטת בתוך קופסה: יוצקים סיליקון ומקבלים תבנית גמישה. כבוי: יוצקים ישר לתוך ההדפסה"), moldMaster) { moldMaster = it }
+                    ToggleRow(tr("הסרת רקע"), tr("לתמונה של אובייקט. כבוי: הצורה היא הקווים הכהים בציור"), flatBg) { flatBg = it }
+                    ToggleRow(tr("פנים עם עומק"), if (Extras.ready(ctx, Extras.DEPTH)) tr("היציקה יוצאת תבליט לפי העומק בתמונה. כבוי: פנים שטוחות")
+                        else tr("צריך את \"מפת עומק\" מהשיפורים בהגדרות"), moldRelief) { moldRelief = it }
+                    Text(tr("גודל: %.0f מ״מ").format(cookieMm), color = C.Text, fontSize = 14.sp)
+                    Slider(cookieMm, { cookieMm = (it / 5).toInt() * 5f }, valueRange = 40f..140f, colors = sliderColors())
+                    Text(tr("עומק היציקה: %.0f מ״מ").format(moldMm), color = C.Text, fontSize = 14.sp)
+                    Slider(moldMm, { moldMm = it.toInt().toFloat() }, valueRange = 5f..30f, colors = sliderColors())
+                }
                 Creations.Kind.QR -> {}
             }
-            Text(if ((kind.needsImage && kind != Creations.Kind.COOKIE && !(kind == Creations.Kind.LITHOPHANE && lamp)) || kind == Creations.Kind.QR) tr("גודל: 100 מ״מ בצלע הארוכה. אחרי היצירה תמצא ייצוא 3MF/STL להדפסה.")
+            Text(if ((kind.needsImage && kind != Creations.Kind.COOKIE && kind != Creations.Kind.MOLD && !(kind == Creations.Kind.LITHOPHANE && lamp)) || kind == Creations.Kind.QR) tr("גודל: 100 מ״מ בצלע הארוכה. אחרי היצירה תמצא ייצוא 3MF/STL להדפסה.")
                 else tr("המודל נשמר בגודל האמיתי שבחרת. אחרי היצירה תמצא ייצוא 3MF/STL להדפסה."), color = C.Faint, fontSize = 12.sp)
             Creations.error?.let { Text(it, color = C.Red, fontSize = 13.sp) }
             Spacer(Modifier.height(4.dp))
@@ -227,16 +242,17 @@ fun ExtraScreen() {
                 Creations.Kind.QR, Creations.Kind.NAME -> text.isNotBlank()
                 Creations.Kind.RELIEF -> image != null && Extras.ready(ctx, Extras.DEPTH)
                 Creations.Kind.STAMP -> if (stampImage) image != null else text.isNotBlank()
+                Creations.Kind.MOLD -> image != null && (!moldRelief || Extras.ready(ctx, Extras.DEPTH))
                 else -> image != null
             }
             GradientButton(tr("צור {0}", kind.label), Modifier.fillMaxWidth(), sparkles = true, enabled = ready && busy == null) {
                 val size = when (kind) {
                     Creations.Kind.NAME -> letterMm
-                    Creations.Kind.COOKIE -> cookieMm
+                    Creations.Kind.COOKIE, Creations.Kind.MOLD -> cookieMm
                     else -> stampMm
                 }
-                Creations.create(kind, image, text, Creations.Options(frame, maxMm, invert, reliefMm, flatBg, size, keyring, tagStyle,
-                    if (lamp) lampMm else 0f, stampImage, qrType, second, caption))
+                Creations.create(kind, image, text, Creations.Options(frame, maxMm, invert, if (kind == Creations.Kind.MOLD) moldMm else reliefMm, flatBg, size, keyring, tagStyle,
+                    if (lamp) lampMm else 0f, stampImage, qrType, second, caption, moldMaster, moldRelief))
             }
         }
     }

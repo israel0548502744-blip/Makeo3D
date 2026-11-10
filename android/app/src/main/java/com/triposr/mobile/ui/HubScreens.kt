@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material.icons.rounded.Terrain
 import androidx.compose.material.icons.rounded.ViewInAr
 import androidx.compose.material3.AlertDialog
@@ -82,6 +83,7 @@ fun Creations.Kind.icon(): ImageVector = when (this) {
     Creations.Kind.NAME -> Icons.Rounded.Key
     Creations.Kind.COOKIE -> Icons.Rounded.Cookie
     Creations.Kind.STAMP -> Icons.Rounded.Approval
+    Creations.Kind.MOLD -> Icons.Rounded.Science
 }
 
 fun Creations.Kind.blurb(): String = when (this) {
@@ -91,6 +93,7 @@ fun Creations.Kind.blurb(): String = when (this) {
     Creations.Kind.NAME -> tr("שם עם חור לטבעת")
     Creations.Kind.COOKIE -> tr("מציור או מתמונה")
     Creations.Kind.STAMP -> tr("לבצק, חימר ושעווה")
+    Creations.Kind.MOLD -> tr("לנרות, סבון, גבס וסיליקון")
 }
 
 /**
