@@ -80,6 +80,74 @@ object Crafts {
             }
         }
 
+        /**
+         * Joins pieces that are not attached to the largest one, each with a bridge [widthMm]
+         * wide and [z] mm high along the shortest way across the gap; [twice] adds a second
+         * bridge from the far side of each piece, so it cannot swing.
+         */
+        fun join(z: Float, widthMm: Float, twice: Boolean = false) {
+            val label = IntArray(w * h) { -1 }
+            val sizes = ArrayList<Int>()
+            val stack = ArrayDeque<Int>()
+            for (s0 in 0 until w * h) {
+                if (!solid(s0) || label[s0] >= 0) continue
+                var size = 0; label[s0] = sizes.size; stack.addLast(s0)
+                while (stack.isNotEmpty()) {
+                    val i = stack.removeLast(); size++
+                    val x = i % w; val y = i / w
+                    for (j in intArrayOf(if (x > 0) i - 1 else -1, if (x < w - 1) i + 1 else -1, if (y > 0) i - w else -1, if (y < h - 1) i + w else -1))
+                        if (j >= 0 && solid(j) && label[j] < 0) { label[j] = sizes.size; stack.addLast(j) }
+                }
+                sizes.add(size)
+            }
+            if (sizes.size < 2) return
+            val main = sizes.indices.maxByOrNull { sizes[it] }!!
+            val r = (widthMm / 2 / cell).roundToInt().coerceAtLeast(1)
+            val bridge = -2  // label of bridge samples
+            fun paint(i: Int) {
+                for (dy in -r..r) for (dx in -r..r) {
+                    val x = i % w + dx; val y = i / w + dy
+                    if (x !in 0 until w || y !in 0 until h || dx * dx + dy * dy > r * r) continue
+                    val k = y * w + x
+                    if (!solid(k)) { top[k] = z; bot[k] = 0f; label[k] = bridge }
+                }
+            }
+            /** Shortest way from the samples [from] across empty samples to a solid sample [to] accepts; returns where it started and ended. */
+            fun link(from: (Int) -> Boolean, to: (Int) -> Boolean): Pair<Int, Int>? {
+                val prev = IntArray(w * h) { -2 }
+                val queue = ArrayDeque<Int>()
+                for (i in 0 until w * h) if (from(i)) { prev[i] = -1; queue.addLast(i) }
+                while (queue.isNotEmpty()) {
+                    val i = queue.removeFirst()
+                    val x = i % w; val y = i / w
+                    for (j in intArrayOf(if (x > 0) i - 1 else -1, if (x < w - 1) i + 1 else -1, if (y > 0) i - w else -1, if (y < h - 1) i + w else -1)) {
+                        if (j < 0 || prev[j] != -2) continue
+                        if (label[j] >= 0 || label[j] == bridge) {
+                            if (!to(j)) continue
+                            var k = i; var start = i
+                            while (k != -1) { start = k; if (label[k] == -1) paint(k); k = prev[k] }
+                            return start to j
+                        }
+                        prev[j] = i; queue.addLast(j)
+                    }
+                }
+                return null
+            }
+            val joined = BooleanArray(sizes.size).also { it[main] = true }
+            val contact = IntArray(sizes.size) { -1 }  // where each piece's first bridge leaves it
+            repeat(sizes.size - 1) {
+                val hit = link({ label[it] >= 0 && joined[label[it]] }, { label[it] >= 0 && !joined[label[it]] }) ?: return@repeat
+                joined[label[hit.second]] = true; contact[label[hit.second]] = hit.second
+            }
+            if (twice) for (piece in sizes.indices) {
+                val c = contact[piece]; if (c < 0) continue
+                var far = 0f
+                for (i in 0 until w * h) if (label[i] == piece) far = max(far, hypot((i % w - c % w).toFloat(), (i / w - c / w).toFloat()))
+                if (far * cell < 8f) continue  // a small piece holds on one bridge
+                link({ label[it] == piece && hypot((it % w - c % w).toFloat(), (it / w - c / w).toFloat()) > far * 0.7f }, { label[it] != piece })
+            }
+        }
+
         /** Distance (samples) of each solid sample from the nearest empty one. */
         fun inward() = Templates.distanceOutside(Mask(w, h, BooleanArray(w * h) { !solid(it) }))
 
@@ -161,11 +229,14 @@ object Crafts {
         return Pic(cw, ch, IntArray(cw * ch) { px[at(it)] or (0xFF shl 24) }, m.cropped(), d?.let { all -> FloatArray(cw * ch) { all[at(it)] } })
     }
 
+    /** Transparent pixels become white (a cut-out picture used as a photo). */
+    private fun onWhite(px: IntArray): IntArray { for (i in px.indices) if (Color.alpha(px[i]) < 128) px[i] = Color.WHITE; return px }
+
     /** [src] scaled so its longest side has [samples] samples: pixels, width, height. */
     private fun scaled(src: Bitmap, samples: Int): Triple<IntArray, Int, Int> {
         val s = samples.toFloat() / maxOf(src.width, src.height)
         val w = (src.width * s).toInt().coerceAtLeast(8); val h = (src.height * s).toInt().coerceAtLeast(8)
-        return Triple(IntArray(w * h).also { Bitmap.createScaledBitmap(src, w, h, true).getPixels(it, 0, w, 0, 0, w, h) }, w, h)
+        return Triple(onWhite(IntArray(w * h).also { Bitmap.createScaledBitmap(src, w, h, true).getPixels(it, 0, w, 0, 0, w, h) }), w, h)
     }
 
     /** How raised each sample is, 0..1: the depth extra when it is installed, else dark = raised. */
@@ -185,6 +256,7 @@ object Crafts {
         val pad = (8f / cell).roundToInt()
         val s = Sheet(p.w + 2 * pad, p.h + 2 * pad, cell)
         for (i in s.top.indices) s.top[i] = if (p.mask[i % s.w - pad, i / s.w - pad]) 0f else 1.2f
+        s.join(1.2f, 1.6f, twice = true)  // parts enclosed by the cut would fall out: hold them with bridges
         return s.done()
     }
 
@@ -253,6 +325,7 @@ object Crafts {
                     backing.cells[i] -> s.top[i] = 1.4f
                 }
             }
+            s.join(1.4f, 2.4f)  // a letter standing apart (a yod, a dot) is tied to the rest
             return s.done()
         }
         val p = pic(src ?: throw IllegalStateException(tr("צריך טקסט או תמונה")), 200, true)
@@ -279,7 +352,10 @@ object Crafts {
     fun sign(text: String, o: Creations.Options): Pair<Mesh, Bitmap> {
         if (text.isBlank()) throw IllegalStateException(tr("צריך להכניס שם או טקסט"))
         val cell = 0.5f
-        val mask = Creations.textMask(text.trim(), (o.sizeMm * 1.4f / cell).toInt())
+        var mask = Creations.textMask(text.trim(), (o.sizeMm * 1.4f / cell).toInt())
+        // Longer than a printer bed: smaller letters, so the whole sign is at most 200 mm.
+        val wide = mask.cropped().w * cell + 12f
+        if (wide > 200f) mask = Creations.textMask(text.trim(), (o.sizeMm * 1.4f / cell * 188f / (wide - 12f)).toInt())
         val m = mask.cropped()
         val thumb = Bitmap.createBitmap(IntArray(m.w * m.h) { if (m.cells[it]) Color.rgb(40, 40, 48) else Color.rgb(236, 236, 240) },
             m.w, m.h, Bitmap.Config.ARGB_8888)
@@ -346,12 +422,13 @@ object Crafts {
         val side = (r - 2.5f / cell) * 1.41f
         m = Templates.scaleTo(m, min(side, side * m.w / m.h).toInt().coerceAtLeast(6))
         s.raiseCentered(m, n / 2, n / 2, -1.3f)
+        s.dark.fill(false)  // the design shows by its depth; the color would run down the handle
         return s.done()
     }
 
     /** Square box with a lid that drops onto a ledge inside the rim; the text is raised on the lid. */
     fun box(text: String, o: Creations.Options): Pair<Mesh, Bitmap> {
-        val cell = 0.4f
+        val cell = max(0.4f, o.sizeMm / 170f)
         val side = (o.sizeMm / cell).roundToInt(); val height = o.sizeMm * 0.6f
         val box = Sheet(side + 2, side + 2, cell)
         for (y in 0 until side) for (x in 0 until side) {
@@ -433,7 +510,10 @@ object Crafts {
                 d > r -> {}
                 d > r - rim -> s.top[i] = 6.5f
                 band && y > c + 0.5f * r -> s.top[i] = 3f
-                else -> { s.top[i] = 2f + 4f * depth[j] * (keep?.get(j) ?: 1f); rgb[i] = px[j] or (0xFF shl 24) }
+                else -> {
+                    s.top[i] = 2f + 4f * depth[j] * (keep?.get(j) ?: 1f)
+                    if ((keep?.get(j) ?: 1f) > 0.5f) rgb[i] = px[j] or (0xFF shl 24)
+                }
             }
         }
         if (band) s.raiseCentered(fitText(text, o.sizeMm * 0.11f, o.sizeMm * 0.55f, cell), s.w / 2, 1 + (c + 0.68f * r).roundToInt(), 1.2f)
@@ -447,7 +527,7 @@ object Crafts {
         val h = (o.sizeMm * 0.9f / cell).toInt()
         val tiles = (420f / (h * src.width / src.height.toFloat())).roundToInt().coerceIn(1, 8)
         val tw = 420 / tiles; val w = tw * tiles
-        val px = IntArray(tw * h).also { Bitmap.createScaledBitmap(src, tw, h, true).getPixels(it, 0, tw, 0, 0, tw, h) }
+        val px = onWhite(IntArray(tw * h).also { Bitmap.createScaledBitmap(src, tw, h, true).getPixels(it, 0, tw, 0, 0, tw, h) })
         val up = raisedBy(src, px, tw, h)
         val band = (3f / cell).roundToInt()
         val heights = FloatArray(w * h) { i ->

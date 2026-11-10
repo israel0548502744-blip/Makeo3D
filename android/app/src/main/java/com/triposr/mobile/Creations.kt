@@ -312,7 +312,8 @@ object Creations {
     private fun mold(src: Bitmap, text: String, o: Options): Pair<Mesh, Bitmap> {
         val app = AppState.app
         if (o.moldRelief && !Crafts.depthReady()) throw IllegalStateException(tr("תבנית עם עומק צריכה את \"מפת עומק\" מהשיפורים בהגדרות"))
-        var m = Templates.largest(shape(src, 220, removeBackground = o.flatBackground))
+        // Several copies share one tray: fewer samples each, so the file stays a size a phone can handle.
+        var m = Templates.largest(shape(src, when { o.copies >= 4 -> 130; o.copies == 2 -> 170; else -> 220 }, removeBackground = o.flatBackground))
         if (!o.flatBackground) m = Templates.fillHoles(m)  // a drawing: the mold is what the line encloses
         if (m.count() < 50) throw IllegalStateException(tr("לא נמצאה צורה בתמונה"))
         val depth = if (o.moldRelief) Heightfield.normalizeDepth(Crafts.depth(src, m.w, m.h),
