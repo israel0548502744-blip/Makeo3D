@@ -336,7 +336,7 @@ fun ModelPacksSection() {
     }
     Section(title = tr("מודלים נוספים")) {
         Text(tr("אחרי ההורדה אפשר לבחור במסך היצירה איזה מודל יבנה את התלת־ממד."), color = C.Sub, fontSize = 12.sp)
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color(0x14FFFFFF)).padding(12.dp),
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(C.veil(0x14)).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconTile(Icons.Rounded.Memory, 36.dp, C.Accent)
@@ -418,7 +418,7 @@ private fun ExtraRow(e: Extras.Extra, status: ModelStore.Status) {
     var active by remember { mutableStateOf(Extras.active(ctx, e)) }
     var err by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { size = runCatching { ModelStore.availableSize(e.pack) }.getOrNull() }
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color(0x14FFFFFF)).padding(12.dp),
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(C.veil(0x14)).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconTile(when (e) {

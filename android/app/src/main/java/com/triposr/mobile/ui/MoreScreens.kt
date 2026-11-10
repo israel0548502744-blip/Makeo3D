@@ -330,17 +330,17 @@ fun ResultScreen() {
 }
 
 @Composable
-internal fun sliderColors() = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = C.Magenta,
-    inactiveTrackColor = Color(0x22FFFFFF), activeTickColor = Color(0x66FFFFFF), inactiveTickColor = Color(0x33FFFFFF))
+internal fun sliderColors() = SliderDefaults.colors(thumbColor = if (C.dark) Color.White else C.Purple, activeTrackColor = C.Magenta,
+    inactiveTrackColor = C.veil(0x22), activeTickColor = Color(0x66FFFFFF), inactiveTickColor = C.veil(0x33))
 
 @Composable
 private fun ViewToggle(icon: ImageVector, label: String, on: Boolean, onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp))
-            .background(if (on) C.Accent else Brush.verticalGradient(listOf(Color(0x33FFFFFF), Color(0x14FFFFFF))))
-            .border(1.dp, if (on) Color(0x55FFFFFF) else Color(0x22FFFFFF), RoundedCornerShape(14.dp))
+            .background(if (on) C.Accent else Brush.verticalGradient(listOf(C.veil(0x33), C.veil(0x14))))
+            .border(1.dp, if (on) Color(0x55FFFFFF) else C.veil(0x22), RoundedCornerShape(14.dp))
             .pressable(onClick = onClick), contentAlignment = Alignment.Center) {
-            Icon(icon, label, tint = Color.White, modifier = Modifier.size(20.dp))
+            Icon(icon, label, tint = if (on) Color.White else C.Text, modifier = Modifier.size(20.dp))
         }
         Text(label, color = if (on) C.Text else C.Sub, fontSize = 10.sp)
     }
@@ -362,8 +362,8 @@ private fun RenameDialog(p: Project, onDone: () -> Unit) {
 @Composable
 private fun fieldColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor = C.Violet, unfocusedBorderColor = C.Stroke, focusedTextColor = C.Text,
-    unfocusedTextColor = C.Text, cursorColor = C.Violet, focusedContainerColor = Color(0x14FFFFFF),
-    unfocusedContainerColor = Color(0x0DFFFFFF))
+    unfocusedTextColor = C.Text, cursorColor = C.Violet, focusedContainerColor = C.veil(0x14),
+    unfocusedContainerColor = C.veil(0x0D))
 
 /** Print-readiness report: size, repairs, watertightness, wall thickness, and print exports. */
 @Composable
@@ -442,7 +442,7 @@ fun ProjectsScreen() {
                 Text("${label} · ${n}", color = if (on) Color.White else C.Sub, fontSize = 13.sp,
                     fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
                     modifier = Modifier.clip(RoundedCornerShape(50))
-                        .background(if (on) C.Violet else Color(0x14FFFFFF))
+                        .background(if (on) C.Violet else C.veil(0x14))
                         .pressable { tab = key }.padding(horizontal = 14.dp, vertical = 8.dp))
             }
         }
@@ -523,6 +523,17 @@ fun SettingsScreen() {
                 RowDivider()
                 NavRow(Icons.Rounded.Email, tr("צור קשר"), Actions.SUPPORT_EMAIL) { Actions.email(ctx, tr("פנייה"), "") }
             }
+            Section(Modifier.enter(0), title = tr("מראה")) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for ((l, label) in listOf(Look.AUTO to tr("לפי המכשיר"), Look.DARK to tr("כהה"), Look.LIGHT to tr("בהיר"))) {
+                        val on = Appearance.look == l
+                        Text(label, color = if (on) Color.White else C.Sub, fontSize = 13.sp,
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) C.Violet else C.veil(0x14))
+                                .pressable { Appearance.set(ctx, l) }
+                                .padding(horizontal = 14.dp, vertical = 8.dp))
+                    }
+                }
+            }
             Section(Modifier.enter(0), title = "שפה · Language") {
                 var lang by remember { mutableStateOf(com.triposr.mobile.I18n.choice(ctx)) }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -530,7 +541,7 @@ fun SettingsScreen() {
                         com.triposr.mobile.I18n.Choice.HE to "עברית", com.triposr.mobile.I18n.Choice.EN to "English")) {
                         val on = lang == c
                         Text(label, color = if (on) Color.White else C.Sub, fontSize = 13.sp,
-                            modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) C.Violet else Color(0x14FFFFFF))
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) C.Violet else C.veil(0x14))
                                 .pressable { lang = c; com.triposr.mobile.I18n.setChoice(ctx, c) }
                                 .padding(horizontal = 14.dp, vertical = 8.dp))
                     }

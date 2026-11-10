@@ -54,6 +54,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,35 +89,64 @@ import com.triposr.mobile.R
 import kotlin.math.sin
 
 /** Design tokens: deep-space purple, glass surfaces, pink→orange primary action. */
+/** The app's look: follow the phone, or always dark / light. Chosen in Settings. */
+enum class Look { AUTO, DARK, LIGHT }
+
+object Appearance {
+    private fun prefs(ctx: android.content.Context) = ctx.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
+    /** Read by [TripoTheme]; changing it repaints the app at once. */
+    var look by mutableStateOf(Look.AUTO); private set
+    fun load(ctx: android.content.Context) { look = runCatching { Look.valueOf(prefs(ctx).getString("look", "AUTO")!!) }.getOrDefault(Look.AUTO) }
+    fun set(ctx: android.content.Context, l: Look) { look = l; prefs(ctx).edit().putString("look", l.name).apply() }
+}
+
+/**
+ * The palette. Every color is read through here, so the whole app follows [dark]: the same
+ * brand gradients in both looks, with surfaces and text swapped.
+ */
 object C {
-    val Bg = Color(0xFF07051A)
-    val BgMid = Color(0xFF150B36)
-    val BgLow = Color(0xFF0D0824)
+    /** Set by [TripoTheme]. */
+    var dark by mutableStateOf(true)
+    private fun pick(d: Long, l: Long) = Color(if (dark) d else l)
 
-    // Glass surfaces (translucent white over the space background).
-    val Card = Color(0xFF16112F)
-    val CardHigh = Color(0xFF221A45)
-    val Stroke = Color(0x29FFFFFF)
-    val GlassTop = Color(0x1AFFFFFF)
-    val GlassBottom = Color(0x08FFFFFF)
+    val Bg get() = pick(0xFF07051A, 0xFFF4F0FC)
+    val BgMid get() = pick(0xFF150B36, 0xFFFBF9FF)
+    val BgLow get() = pick(0xFF0D0824, 0xFFECE6FA)
 
-    val Purple = Color(0xFF8B5CF6)
-    val Violet = Color(0xFFC084FC)
-    val Magenta = Color(0xFFD946EF)
-    val Pink = Color(0xFFF0509E)
-    val Orange = Color(0xFFFF9554)
-    val Text = Color(0xFFF6F3FF)
-    val Sub = Color(0xFFB3ABD6)
-    val Faint = Color(0xFF7D75A8)
-    val Green = Color(0xFF4ADE80)
-    val Red = Color(0xFFFB7185)
-    val Amber = Color(0xFFFBBF24)
+    // Surfaces: translucent white over the space background, or white cards on the light one.
+    val Card get() = pick(0xFF16112F, 0xFFFFFFFF)
+    val CardHigh get() = pick(0xFF221A45, 0xFFF1ECFB)
+    val Stroke get() = pick(0x29FFFFFF, 0x24372A6E)
+    val GlassTop get() = pick(0x1AFFFFFF, 0xFFFFFFFF)
+    val GlassBottom get() = pick(0x08FFFFFF, 0xF2FFFFFF)
+    /** The bottom sheet's own ground. */
+    val SheetTop get() = pick(0xFF241A4D, 0xFFFFFFFF)
+    val SheetBottom get() = pick(0xFF120C2C, 0xFFF1ECFB)
 
-    val Primary = Brush.horizontalGradient(listOf(Color(0xFFE6479F), Color(0xFFFF6F6A), Color(0xFFFFA04C)))
-    val Accent = Brush.linearGradient(listOf(Purple, Magenta))
-    val Title = Brush.horizontalGradient(listOf(Color(0xFFF1ECFF), Color(0xFFC3B2FF), Color(0xFFEADFFF)))
-    val GlassFill = Brush.verticalGradient(listOf(GlassTop, GlassBottom))
-    val GlassEdge = Brush.verticalGradient(listOf(Color(0x40FFFFFF), Color(0x0AFFFFFF)))
+    val Purple get() = pick(0xFF8B5CF6, 0xFF7C3AED)
+    val Violet get() = pick(0xFFC084FC, 0xFF7C3AED)
+    val Magenta get() = pick(0xFFD946EF, 0xFFC026D3)
+    val Pink get() = pick(0xFFF0509E, 0xFFE0408F)
+    val Orange get() = pick(0xFFFF9554, 0xFFE8742A)
+    val Text get() = pick(0xFFF6F3FF, 0xFF1C1637)
+    val Sub get() = pick(0xFFB3ABD6, 0xFF5F5880)
+    val Faint get() = pick(0xFF7D75A8, 0xFF8C86A8)
+    val Green get() = pick(0xFF4ADE80, 0xFF15803D)
+    val Red get() = pick(0xFFFB7185, 0xFFE11D48)
+    val Amber get() = pick(0xFFFBBF24, 0xFFB45309)
+
+    /** A faint layer on a surface ([alpha] 0..255 as on dark): white on dark, deep purple on light. */
+    fun veil(alpha: Int) = if (dark) Color(255, 255, 255, alpha) else Color(55, 42, 110, (alpha * 0.75f).toInt())
+    /** A slightly sunken area (picture wells, segmented tracks). */
+    val Sink get() = pick(0x33000000, 0x14372A6E)
+
+    val Primary get() = Brush.horizontalGradient(listOf(Color(0xFFE6479F), Color(0xFFFF6F6A), Color(0xFFFFA04C)))
+    val Accent get() = Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFFD946EF)))
+    val Title get() = if (dark) Brush.horizontalGradient(listOf(Color(0xFFF1ECFF), Color(0xFFC3B2FF), Color(0xFFEADFFF)))
+        else Brush.horizontalGradient(listOf(Color(0xFF2A1F5C), Color(0xFF6D28D9), Color(0xFF2A1F5C)))
+    val GlassFill get() = Brush.verticalGradient(listOf(GlassTop, GlassBottom))
+    val GlassEdge get() = if (dark) Brush.verticalGradient(listOf(Color(0x40FFFFFF), Color(0x0AFFFFFF)))
+        else Brush.verticalGradient(listOf(Color(0x24372A6E), Color(0x14372A6E)))
 }
 
 @OptIn(ExperimentalTextApi::class)
@@ -129,9 +160,15 @@ val LocalAnimations = staticCompositionLocalOf { true }
 
 @Composable
 fun TripoTheme(animations: Boolean = true, content: @Composable () -> Unit) {
+    val dark = when (Appearance.look) { Look.DARK -> true; Look.LIGHT -> false; Look.AUTO -> androidx.compose.foundation.isSystemInDarkTheme() }
+    C.dark = dark
     val base = TextStyle(fontFamily = Rubik, color = C.Text)
     MaterialTheme(
-        colorScheme = darkColorScheme(
+        colorScheme = if (dark) darkColorScheme(
+            primary = C.Purple, secondary = C.Violet, tertiary = C.Orange,
+            background = C.Bg, surface = C.Card, onSurface = C.Text, onBackground = C.Text,
+            surfaceVariant = C.CardHigh, outline = C.Stroke, surfaceContainer = C.CardHigh,
+        ) else androidx.compose.material3.lightColorScheme(
             primary = C.Purple, secondary = C.Violet, tertiary = C.Orange,
             background = C.Bg, surface = C.Card, onSurface = C.Text, onBackground = C.Text,
             surfaceVariant = C.CardHigh, outline = C.Stroke, surfaceContainer = C.CardHigh,
@@ -168,13 +205,14 @@ fun SpaceBackground(modifier: Modifier = Modifier) {
         drawRect(Brush.verticalGradient(listOf(C.BgMid, C.Bg, C.BgLow)))
         val w = size.width; val h = size.height
         val phase = t * 6.2832f
-        drawCircle(Brush.radialGradient(listOf(Color(0x557C3AED), Color.Transparent),
+        val glow = if (C.dark) 1f else 0.3f  // the same lights, much softer on the light ground
+        drawCircle(Brush.radialGradient(listOf(Color(0x557C3AED).let { it.copy(alpha = it.alpha * glow) }, Color.Transparent),
             center = Offset(w * (0.15f + 0.05f * sin(phase)), h * 0.12f), radius = w * 0.9f),
             radius = w * 0.9f, center = Offset(w * (0.15f + 0.05f * sin(phase)), h * 0.12f))
-        drawCircle(Brush.radialGradient(listOf(Color(0x40DB2777), Color.Transparent),
+        drawCircle(Brush.radialGradient(listOf(Color(0x40DB2777).let { it.copy(alpha = it.alpha * glow) }, Color.Transparent),
             center = Offset(w * 0.95f, h * (0.55f + 0.04f * sin(phase + 2f))), radius = w * 0.75f),
             radius = w * 0.75f, center = Offset(w * 0.95f, h * (0.55f + 0.04f * sin(phase + 2f))))
-        drawCircle(Brush.radialGradient(listOf(Color(0x332563EB), Color.Transparent),
+        drawCircle(Brush.radialGradient(listOf(Color(0x332563EB).let { it.copy(alpha = it.alpha * glow) }, Color.Transparent),
             center = Offset(w * 0.1f, h * 0.9f), radius = w * 0.8f),
             radius = w * 0.8f, center = Offset(w * 0.1f, h * 0.9f))
     }
@@ -183,7 +221,7 @@ fun SpaceBackground(modifier: Modifier = Modifier) {
 /** Frosted-glass surface. */
 fun Modifier.glass(shape: Shape = RoundedCornerShape(24.dp), strong: Boolean = false): Modifier =
     this.clip(shape)
-        .background(if (strong) Brush.verticalGradient(listOf(Color(0x24FFFFFF), Color(0x0FFFFFFF))) else C.GlassFill)
+        .background(if (strong) (if (C.dark) Brush.verticalGradient(listOf(Color(0x24FFFFFF), Color(0x0FFFFFFF))) else SolidColor(Color(0xF7FFFFFF))) else C.GlassFill)
         .border(1.dp, C.GlassEdge, shape)
 
 /** Fades and slides content in once, staggered by [index]. */
@@ -312,7 +350,7 @@ fun SoftButton(
 @Composable
 fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit, disabled: (T) -> Boolean = { false }) {
     Row(
-        Modifier.fillMaxWidth().clip(CircleShape).background(Color(0x33000000)).border(1.dp, C.Stroke, CircleShape).padding(4.dp),
+        Modifier.fillMaxWidth().clip(CircleShape).background(C.Sink).border(1.dp, C.Stroke, CircleShape).padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         for (o in options) {
@@ -341,7 +379,7 @@ fun ToggleRow(title: String, subtitle: String?, checked: Boolean, onChange: (Boo
         Switch(
             checked = checked, onCheckedChange = onChange,
             colors = SwitchDefaults.colors(checkedTrackColor = C.Purple, checkedThumbColor = Color.White,
-                checkedBorderColor = C.Violet, uncheckedTrackColor = Color(0x22FFFFFF),
+                checkedBorderColor = C.Violet, uncheckedTrackColor = C.veil(0x22),
                 uncheckedThumbColor = C.Sub, uncheckedBorderColor = C.Stroke),
         )
     }
@@ -382,7 +420,7 @@ fun ProgressRing(progress: Float, modifier: Modifier = Modifier, stroke: Dp = 10
             val d = size.minDimension - sw * 2
             val tl = Offset((size.width - d) / 2, (size.height - d) / 2)
             val ring = Brush.sweepGradient(listOf(C.Purple, C.Magenta, C.Pink, C.Orange, C.Purple))
-            drawArc(Color(0x1FFFFFFF), 0f, 360f, false, tl, Size(d, d), style = Stroke(sw))
+            drawArc(C.veil(0x1F), 0f, 360f, false, tl, Size(d, d), style = Stroke(sw))
             drawArc(ring, -90f, 360f * p, false, tl, Size(d, d), alpha = 0.25f, style = Stroke(sw * 2.6f, cap = StrokeCap.Round))
             drawArc(ring, -90f, 360f * p, false, tl, Size(d, d), style = Stroke(sw, cap = StrokeCap.Round))
         }
@@ -411,7 +449,7 @@ fun IconTile(icon: ImageVector, size: Dp = 48.dp, brush: Brush = C.Accent) {
 @Composable
 fun GlowBar(progress: Float, modifier: Modifier = Modifier, brush: Brush = C.Accent) {
     val p by animateFloatAsState(progress.coerceIn(0f, 1f), tween(400), label = "bar")
-    Box(modifier.height(6.dp).clip(CircleShape).background(Color(0x22FFFFFF))) {
+    Box(modifier.height(6.dp).clip(CircleShape).background(C.veil(0x22))) {
         Box(Modifier.fillMaxWidth(p).height(6.dp).clip(CircleShape).background(brush))
     }
 }
@@ -455,7 +493,7 @@ private fun ChoiceCard(
         modifier
             .clip(shape)
             .background(Brush.verticalGradient(listOf(
-                Color(0x1FFFFFFF).copy(alpha = 0.10f + 0.10f * glow), Color(0x08FFFFFF))))
+                C.veil(0x1F).let { it.copy(alpha = it.alpha / 0.12f * (0.10f + 0.10f * glow)) }, C.veil(0x08))))
             .border(if (selected) 1.6.dp else 1.dp,
                 if (selected) Brush.linearGradient(listOf(C.Violet, C.Magenta, C.Orange)) else C.GlassEdge, shape)
             .alpha(if (disabled) 0.45f else 1f)
@@ -466,7 +504,7 @@ private fun ChoiceCard(
             modifier = Modifier.fillMaxWidth()) {
             if (icon != null) {
                 Box(Modifier.size(if (compact) 30.dp else 34.dp).clip(RoundedCornerShape(10.dp))
-                    .background(if (selected) C.Accent else SolidColor(Color(0x1AFFFFFF))),
+                    .background(if (selected) C.Accent else SolidColor(C.veil(0x1A))),
                     contentAlignment = Alignment.Center) {
                     Icon(icon, null, tint = if (selected) Color.White else C.Sub, modifier = Modifier.size(18.dp))
                 }
@@ -495,7 +533,7 @@ fun <T> ChoiceChips(options: List<T>, selected: T, label: (T) -> String, onSelec
             val on = o == selected
             Row(
                 Modifier.clip(CircleShape)
-                    .background(if (on) C.Primary else SolidColor(Color(0x14FFFFFF)))
+                    .background(if (on) C.Primary else SolidColor(C.veil(0x14)))
                     .border(1.dp, if (on) SolidColor(Color(0x40FFFFFF)) else C.GlassEdge, CircleShape)
                     .pressable { onSelect(o) }
                     .padding(horizontal = 14.dp, vertical = 9.dp),
@@ -534,4 +572,4 @@ fun NavRow(icon: ImageVector, title: String, detail: String? = null, badge: Stri
 
 /** Thin divider between rows inside a [Section]. */
 @Composable
-fun RowDivider() = Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x12FFFFFF)))
+fun RowDivider() = Box(Modifier.fillMaxWidth().height(1.dp).background(C.veil(0x12)))

@@ -57,7 +57,19 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleIntent(intent)
-        setContent { TripoTheme { App() } }
+        com.triposr.mobile.ui.Appearance.load(this)
+        setContent {
+            TripoTheme {
+                // Dark icons in the status and navigation bars on the light look.
+                val dark = com.triposr.mobile.ui.C.dark
+                androidx.compose.runtime.SideEffect {
+                    androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+                        isAppearanceLightStatusBars = !dark; isAppearanceLightNavigationBars = !dark
+                    }
+                }
+                App()
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

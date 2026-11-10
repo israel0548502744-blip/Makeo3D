@@ -296,8 +296,8 @@ private fun FeatureCard(
                 Text(subtitle, color = C.Sub, fontSize = 12.sp, maxLines = 1)
             }
         }
-        Box(Modifier.weight(1.1f).fillMaxSize().clip(RoundedCornerShape(18.dp)).background(Color(0x33000000))
-            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(18.dp))) { preview() }
+        Box(Modifier.weight(1.1f).fillMaxSize().clip(RoundedCornerShape(18.dp)).background(C.Sink)
+            .border(1.dp, C.veil(0x14), RoundedCornerShape(18.dp))) { preview() }
     }
 }
 
@@ -326,7 +326,7 @@ private fun ThumbStack(projects: List<Project>) {
             val k = projects.size - 1 - idx
             val bmp = rememberThumb(p)
             Box(Modifier.offset(x = (k * 22 - 22).dp).size(64.dp).shadow(8.dp, RoundedCornerShape(16.dp))
-                .clip(RoundedCornerShape(16.dp)).background(C.CardHigh).border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))) {
+                .clip(RoundedCornerShape(16.dp)).background(C.CardHigh).border(1.dp, C.veil(0x33), RoundedCornerShape(16.dp))) {
                 if (bmp != null) Image(bmp.asImageBitmap(), null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             }
         }
@@ -362,7 +362,7 @@ fun rememberThumb(p: Project): android.graphics.Bitmap? {
 fun ProjectThumb(p: Project, modifier: Modifier = Modifier) {
     val bmp = rememberThumb(p)
     Column(modifier.glass(RoundedCornerShape(22.dp)).pressable { AppState.open(p) }.padding(8.dp)) {
-        Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(Color(0x33000000))) {
+        Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(C.Sink)) {
             if (bmp != null) Image(bmp.asImageBitmap(), null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         }
         Spacer(Modifier.height(8.dp))
@@ -671,7 +671,7 @@ private fun AdvancedOptions(smoothOn: Boolean, generator: Generator) {
                             val on = steps.roundToInt() == n
                             Text(label, color = if (on) Color.White else C.Sub, fontSize = 13.sp,
                                 modifier = Modifier.weight(1f).clip(RoundedCornerShape(50))
-                                    .background(if (on) C.Violet else Color(0x14FFFFFF))
+                                    .background(if (on) C.Violet else C.veil(0x14))
                                     .pressable { steps = n.toFloat(); Settings.setSgSteps(ctx, n) }
                                     .padding(horizontal = 12.dp, vertical = 9.dp), textAlign = TextAlign.Center)
                         }
@@ -740,7 +740,7 @@ fun ProcessingScreen() {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
             ProgressRing(if (job.error != null) 0f else job.overall, Modifier.size(250.dp).enter(0), stroke = 9.dp) {
-                Box(Modifier.size(186.dp).clip(CircleShape).background(Color(0x33000000)), contentAlignment = Alignment.TopCenter) {
+                Box(Modifier.size(186.dp).clip(CircleShape).background(C.Sink), contentAlignment = Alignment.TopCenter) {
                     if (img != null) Image(img.asImageBitmap(), null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                     if (job.error == null) Box(Modifier.fillMaxWidth().height(3.dp).offset(y = (186 * scan).dp)
                         .background(Brush.horizontalGradient(listOf(Color.Transparent, C.Violet, C.Orange, Color.Transparent))))

@@ -91,6 +91,7 @@ class ScreenshotTest {
     fun setUp() {
         // The test machine's language is English; the app's main language is Hebrew.
         I18n.setChoice(ctx, I18n.Choice.HE); I18n.init(ctx)
+        com.triposr.mobile.ui.Appearance.set(ctx, com.triposr.mobile.ui.Look.DARK)
         ReflectionHelpers.setStaticField(Build::class.java, "SOC_MANUFACTURER", "QTI")
         ReflectionHelpers.setStaticField(Build::class.java, "SOC_MODEL", "SM8750")
         // Model downloaded.
@@ -186,6 +187,22 @@ class ScreenshotTest {
         AppState.createMenu = true
         shot("15_create_menu", Screen.Home) { Box(Modifier.fillMaxSize()) { HomeScreen(); com.triposr.mobile.ui.CreateMenu() } }
         AppState.createMenu = false
+    }
+
+    /** The main screens in the light look. */
+    @Test fun light() {
+        com.triposr.mobile.ui.Appearance.set(ctx, com.triposr.mobile.ui.Look.LIGHT)
+        try {
+            shot("light_01_home", Screen.Home) { HomeScreen() }
+            AppState.input = sampleImage(); shot("light_03_create_image") { CreateScreen({}, {}, {}) }; AppState.input = null
+            shot("light_07_gallery", Screen.Projects) { ProjectsScreen() }
+            shot("light_08_settings", Screen.Settings) { SettingsScreen() }
+            shot("light_14_models", Screen.Models) { com.triposr.mobile.ui.ModelsScreen() }
+            shot("light_15_create_menu") { com.triposr.mobile.ui.CreateMenuContent() }
+            AppState.extraKind = Creations.Kind.MOLD; shot("light_x_mold") { com.triposr.mobile.ui.ExtraScreen() }
+            val m = sphere(); AppState.mesh = m; AppState.originalMesh = m; AppState.project = AppState.projects.first()
+            shot("light_06_result") { ResultScreen() }
+        } finally { com.triposr.mobile.ui.Appearance.set(ctx, com.triposr.mobile.ui.Look.DARK) }
     }
 
     /** Every print product's screen, and the full product menu scrolled to its end. */

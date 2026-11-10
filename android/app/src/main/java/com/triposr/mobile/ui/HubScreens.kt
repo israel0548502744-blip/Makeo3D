@@ -167,7 +167,7 @@ fun CreateMenuContent() {
     val shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp)
     Column(
         Modifier.fillMaxWidth().clip(shape)
-            .background(Brush.verticalGradient(listOf(Color(0xFF241A4D), Color(0xFF120C2C))))
+            .background(Brush.verticalGradient(listOf(C.SheetTop, C.SheetBottom)))
             .border(1.dp, C.GlassEdge, shape)
             .clickable(remember { MutableInteractionSource() }, indication = null) {}
             .statusBarsPadding()
@@ -178,7 +178,7 @@ fun CreateMenuContent() {
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Box(Modifier.align(Alignment.CenterHorizontally).size(width = 40.dp, height = 4.dp).clip(CircleShape)
-            .background(Color(0x40FFFFFF)))
+            .background(C.veil(0x40)))
         Text(tr("מה ניצור היום?"), color = C.Text, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(C.Primary)
