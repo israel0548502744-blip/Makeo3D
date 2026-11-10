@@ -220,74 +220,73 @@ class CraftsQaTest {
     }
 
     @Test fun everyProduct() {
-        val K = Creations.Kind
         val fig = figure(); val draw = drawing(); val pic = photo()
 
         // --- the 15 new products
-        product(Case("stencil", K.STENCIL, fig, "", opts(100f), longMm = 116f),
-            Case("stencil_size", K.STENCIL, fig, "", opts(160f), longMm = 176f),
-            Case("stencil_drawing", K.STENCIL, draw, "", opts(100f, flatBg = false)))
-        product(Case("magnet", K.MAGNET, fig, "", opts(60f), longMm = 60f),
-            Case("magnet_size", K.MAGNET, fig, "", opts(85f), longMm = 85f))
-        product(Case("stand", K.STAND, null, "", opts()),
-            Case("stand_name", K.STAND, null, "דניאל", opts()))
-        product(Case("frame", K.FRAME, null, "", opts(130f), longMm = 154f),
-            Case("frame_size", K.FRAME, null, "", opts(100f), longMm = 124f),
-            Case("frame_caption", K.FRAME, null, "קיץ 2026", opts(130f), longMm = 154f))
-        product(Case("topper_text", K.TOPPER, null, "מזל טוב", opts(110f)),
-            Case("topper_size", K.TOPPER, null, "מזל טוב", opts(150f)),
-            Case("topper_short", K.TOPPER, null, "יעל", opts(70f)),
-            Case("topper_image", K.TOPPER, fig, "", opts(110f)))
-        product(Case("pendant", K.PENDANT, fig, "", opts(35f)),
-            Case("pendant_size", K.PENDANT, fig, "", opts(55f)),
-            Case("pendant_pair", K.PENDANT, fig, "", opts(35f, alt = true), parts = 2))
-        product(Case("sign", K.SIGN, null, "החדר של נועה", opts(35f)),
-            Case("sign_size", K.SIGN, null, "החדר של נועה", opts(55f)),
-            Case("sign_english", K.SIGN, null, "Noa's room", opts(35f)))
-        product(Case("bookmark", K.BOOKMARK, null, "נועה", opts(), longMm = 140f),
-            Case("bookmark_long", K.BOOKMARK, null, "הספר של נועה כהן", opts(), longMm = 140f))
-        product(Case("medal", K.MEDAL, fig, "", opts(70f), longMm = 70f),
-            Case("medal_size", K.MEDAL, fig, "", opts(95f), longMm = 95f),
-            Case("medal_name", K.MEDAL, fig, "סבא דוד", opts(70f), longMm = 70f),
-            Case("medal_photo", K.MEDAL, pic, "", opts(70f, flatBg = false), longMm = 70f))
-        product(Case("planter", K.PLANTER, pic, "", opts(80f)),
-            Case("planter_size", K.PLANTER, pic, "", opts(110f)),
-            Case("planter_tall_picture", K.PLANTER, fig, "", opts(80f)))
-        product(Case("night", K.NIGHT, pic, "", opts(), parts = 2))
-        product(Case("puzzle", K.PUZZLE, pic, "", opts(110f), parts = 6, longMm = 110f),
-            Case("puzzle_size", K.PUZZLE, pic, "", opts(140f), parts = 6, longMm = 140f),
-            Case("puzzle_more", K.PUZZLE, pic, "", opts(110f, alt = true), parts = 12, longMm = 110f))
-        product(Case("seal_text", K.SEAL, null, "נ", opts(25f)),
-            Case("seal_size", K.SEAL, null, "נ", opts(34f)),
-            Case("seal_drawing", K.SEAL, draw, "", opts(25f)))
-        product(Case("pettag", K.PETTAG, null, "לאקי", opts(40f), longMm = 40f),
-            Case("pettag_size", K.PETTAG, null, "לאקי", opts(55f), longMm = 55f),
-            Case("pettag_phone", K.PETTAG, null, "לאקי", opts(40f, second = "054-1234567"), longMm = 40f))
-        product(Case("box", K.BOX, null, "", opts(70f), parts = 2),
-            Case("box_size", K.BOX, null, "", opts(100f), parts = 2),
-            Case("box_name", K.BOX, null, "תכשיטים", opts(70f), parts = 2))
+        product(Case("stencil", Creations.Kind.STENCIL, fig, "", opts(100f), longMm = 116f),
+            Case("stencil_size", Creations.Kind.STENCIL, fig, "", opts(160f), longMm = 176f),
+            Case("stencil_drawing", Creations.Kind.STENCIL, draw, "", opts(100f, flatBg = false)))
+        product(Case("magnet", Creations.Kind.MAGNET, fig, "", opts(60f), longMm = 60f),
+            Case("magnet_size", Creations.Kind.MAGNET, fig, "", opts(85f), longMm = 85f))
+        product(Case("stand", Creations.Kind.STAND, null, "", opts()),
+            Case("stand_name", Creations.Kind.STAND, null, "דניאל", opts()))
+        product(Case("frame", Creations.Kind.FRAME, null, "", opts(130f), longMm = 154f),
+            Case("frame_size", Creations.Kind.FRAME, null, "", opts(100f), longMm = 124f),
+            Case("frame_caption", Creations.Kind.FRAME, null, "קיץ 2026", opts(130f), longMm = 154f))
+        product(Case("topper_text", Creations.Kind.TOPPER, null, "מזל טוב", opts(110f)),
+            Case("topper_size", Creations.Kind.TOPPER, null, "מזל טוב", opts(150f)),
+            Case("topper_short", Creations.Kind.TOPPER, null, "יעל", opts(70f)),
+            Case("topper_image", Creations.Kind.TOPPER, fig, "", opts(110f)))
+        product(Case("pendant", Creations.Kind.PENDANT, fig, "", opts(35f)),
+            Case("pendant_size", Creations.Kind.PENDANT, fig, "", opts(55f)),
+            Case("pendant_pair", Creations.Kind.PENDANT, fig, "", opts(35f, alt = true), parts = 2))
+        product(Case("sign", Creations.Kind.SIGN, null, "החדר של נועה", opts(35f)),
+            Case("sign_size", Creations.Kind.SIGN, null, "החדר של נועה", opts(55f)),
+            Case("sign_english", Creations.Kind.SIGN, null, "Noa's room", opts(35f)))
+        product(Case("bookmark", Creations.Kind.BOOKMARK, null, "נועה", opts(), longMm = 140f),
+            Case("bookmark_long", Creations.Kind.BOOKMARK, null, "הספר של נועה כהן", opts(), longMm = 140f))
+        product(Case("medal", Creations.Kind.MEDAL, fig, "", opts(70f), longMm = 70f),
+            Case("medal_size", Creations.Kind.MEDAL, fig, "", opts(95f), longMm = 95f),
+            Case("medal_name", Creations.Kind.MEDAL, fig, "סבא דוד", opts(70f), longMm = 70f),
+            Case("medal_photo", Creations.Kind.MEDAL, pic, "", opts(70f, flatBg = false), longMm = 70f))
+        product(Case("planter", Creations.Kind.PLANTER, pic, "", opts(80f)),
+            Case("planter_size", Creations.Kind.PLANTER, pic, "", opts(110f)),
+            Case("planter_tall_picture", Creations.Kind.PLANTER, fig, "", opts(80f)))
+        product(Case("night", Creations.Kind.NIGHT, pic, "", opts(), parts = 2))
+        product(Case("puzzle", Creations.Kind.PUZZLE, pic, "", opts(110f), parts = 6, longMm = 110f),
+            Case("puzzle_size", Creations.Kind.PUZZLE, pic, "", opts(140f), parts = 6, longMm = 140f),
+            Case("puzzle_more", Creations.Kind.PUZZLE, pic, "", opts(110f, alt = true), parts = 12, longMm = 110f))
+        product(Case("seal_text", Creations.Kind.SEAL, null, "נ", opts(25f)),
+            Case("seal_size", Creations.Kind.SEAL, null, "נ", opts(34f)),
+            Case("seal_drawing", Creations.Kind.SEAL, draw, "", opts(25f)))
+        product(Case("pettag", Creations.Kind.PETTAG, null, "לאקי", opts(40f), longMm = 40f),
+            Case("pettag_size", Creations.Kind.PETTAG, null, "לאקי", opts(55f), longMm = 55f),
+            Case("pettag_phone", Creations.Kind.PETTAG, null, "לאקי", opts(40f, second = "054-1234567"), longMm = 40f))
+        product(Case("box", Creations.Kind.BOX, null, "", opts(70f), parts = 2),
+            Case("box_size", Creations.Kind.BOX, null, "", opts(100f), parts = 2),
+            Case("box_name", Creations.Kind.BOX, null, "תכשיטים", opts(70f), parts = 2))
 
         // --- casting molds
-        product(Case("mold", K.MOLD, fig, "", opts(80f, reliefMm = 12f)),
-            Case("mold_size", K.MOLD, fig, "", opts(120f, reliefMm = 12f)),
-            Case("mold_depth", K.MOLD, fig, "", opts(80f, reliefMm = 25f)),
-            Case("mold_master", K.MOLD, fig, "", opts(80f, reliefMm = 12f, moldMaster = true)),
-            Case("mold_relief", K.MOLD, fig, "", opts(80f, reliefMm = 12f, moldRelief = true)),
-            Case("mold_wick", K.MOLD, fig, "", opts(80f, reliefMm = 12f, wick = true)),
-            Case("mold_text", K.MOLD, fig, "נועה", opts(80f, reliefMm = 12f)),
-            Case("mold_4", K.MOLD, fig, "", opts(80f, reliefMm = 12f, copies = 4)),
-            Case("mold_master_6", K.MOLD, fig, "", opts(60f, reliefMm = 12f, moldMaster = true, copies = 6)),
-            Case("mold_drawing", K.MOLD, draw, "", opts(80f, reliefMm = 12f, flatBg = false)))
+        product(Case("mold", Creations.Kind.MOLD, fig, "", opts(80f, reliefMm = 12f)),
+            Case("mold_size", Creations.Kind.MOLD, fig, "", opts(120f, reliefMm = 12f)),
+            Case("mold_depth", Creations.Kind.MOLD, fig, "", opts(80f, reliefMm = 25f)),
+            Case("mold_master", Creations.Kind.MOLD, fig, "", opts(80f, reliefMm = 12f, moldMaster = true)),
+            Case("mold_relief", Creations.Kind.MOLD, fig, "", opts(80f, reliefMm = 12f, moldRelief = true)),
+            Case("mold_wick", Creations.Kind.MOLD, fig, "", opts(80f, reliefMm = 12f, wick = true)),
+            Case("mold_text", Creations.Kind.MOLD, fig, "נועה", opts(80f, reliefMm = 12f)),
+            Case("mold_4", Creations.Kind.MOLD, fig, "", opts(80f, reliefMm = 12f, copies = 4)),
+            Case("mold_master_6", Creations.Kind.MOLD, fig, "", opts(60f, reliefMm = 12f, moldMaster = true, copies = 6)),
+            Case("mold_drawing", Creations.Kind.MOLD, draw, "", opts(80f, reliefMm = 12f, flatBg = false)))
 
         // --- the products that were there before (they must keep working)
-        product(Case("lithophane", K.LITHOPHANE, pic, "", opts()),
-            Case("lithophane_lamp", K.LITHOPHANE, pic, "", opts(cylinderMm = 80f)))
-        product(Case("relief", K.RELIEF, pic, "", opts(flatBg = false)))
-        product(Case("qr", K.QR, null, "https://example.com", opts()))
-        product(Case("keychain", K.NAME, null, "נועה", opts(12f)),
-            Case("keychain_plate", K.NAME, null, "נועה", opts(12f, tag = Templates.TagStyle.PLATE)))
-        product(Case("cookie", K.COOKIE, fig, "", opts(80f)))
-        product(Case("stamp", K.STAMP, null, "נועה", opts(50f)))
+        product(Case("lithophane", Creations.Kind.LITHOPHANE, pic, "", opts()),
+            Case("lithophane_lamp", Creations.Kind.LITHOPHANE, pic, "", opts(cylinderMm = 80f)))
+        product(Case("relief", Creations.Kind.RELIEF, pic, "", opts(flatBg = false)))
+        product(Case("qr", Creations.Kind.QR, null, "https://example.com", opts()))
+        product(Case("keychain", Creations.Kind.NAME, null, "נועה", opts(12f)),
+            Case("keychain_plate", Creations.Kind.NAME, null, "נועה", opts(12f, tag = Templates.TagStyle.PLATE)))
+        product(Case("cookie", Creations.Kind.COOKIE, fig, "", opts(80f)))
+        product(Case("stamp", Creations.Kind.STAMP, null, "נועה", opts(50f)))
 
         // --- two-half mold of a 3D model
         val solid = model()
