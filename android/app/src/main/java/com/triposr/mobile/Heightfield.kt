@@ -47,6 +47,85 @@ object Heightfield {
     }
 
     /**
+     * Solid with holes: the top follows [top] and the underside [bottom] (flat at 0 when null).
+     * Samples where the top is not above the underside are empty, which makes holes, outlines
+     * and separate pieces. [color] gives the RGB of a sample.
+     */
+    fun shaped(top: FloatArray, w: Int, h: Int, cellMm: Float, bottom: FloatArray? = null,
+               color: ((Int) -> FloatArray)? = null): Mesh {
+        val n = w * h
+        val solid = BooleanArray(n) { top[it] > (bottom?.get(it) ?: 0f) + 1e-3f }
+        fun on(x: Int, y: Int) = x in 0 until w - 1 && y in 0 until h - 1 &&
+            solid[y * w + x] && solid[y * w + x + 1] && solid[(y + 1) * w + x] && solid[(y + 1) * w + x + 1]
+        val ids = IntArray(n * 2) { -1 }
+        val pos = FloatList(); val col = FloatList(); val tri = IntList()
+        var count = 0
+        val grey = floatArrayOf(0.85f, 0.85f, 0.88f)
+        fun vert(layer: Int, x: Int, y: Int): Int {
+            val i = y * w + x; val k = layer * n + i
+            if (ids[k] < 0) {
+                ids[k] = count++
+                pos.add(x * cellMm); pos.add((h - 1 - y) * cellMm); pos.add(if (layer == 0) top[i] else bottom?.get(i) ?: 0f)
+                val c = color?.invoke(i) ?: grey
+                col.add(c[0]); col.add(c[1]); col.add(c[2])
+            }
+            return ids[k]
+        }
+        fun quad(a: Int, b: Int, c: Int, d: Int) { tri.add(a); tri.add(b); tri.add(c); tri.add(a); tri.add(c); tri.add(d) }
+        fun t(x: Int, y: Int) = vert(0, x, y)
+        fun b(x: Int, y: Int) = vert(1, x, y)
+        for (y in 0 until h - 1) for (x in 0 until w - 1) {
+            if (!on(x, y)) continue
+            quad(t(x, y), t(x, y + 1), t(x + 1, y + 1), t(x + 1, y))
+            quad(b(x, y), b(x + 1, y), b(x + 1, y + 1), b(x, y + 1))
+            if (!on(x, y - 1)) quad(t(x, y), t(x + 1, y), b(x + 1, y), b(x, y))
+            if (!on(x, y + 1)) quad(t(x + 1, y + 1), t(x, y + 1), b(x, y + 1), b(x + 1, y + 1))
+            if (!on(x - 1, y)) quad(t(x, y + 1), t(x, y), b(x, y), b(x, y + 1))
+            if (!on(x + 1, y)) quad(t(x + 1, y), t(x + 1, y + 1), b(x + 1, y + 1), b(x + 1, y))
+        }
+        if (tri.size == 0) throw IllegalStateException("empty shape")
+        return finish(pos.toArray(), col.toArray(), tri.toArray())
+    }
+
+    /**
+     * Pot: like [cylinder] (wall [heights] outward from the inner radius, column x around the
+     * circle) but closed underneath, with a floor [floorMm] thick.
+     */
+    fun pot(heights: FloatArray, w: Int, h: Int, circumferenceMm: Float, floorMm: Float, colors: FloatArray? = null): Mesh {
+        val r = circumferenceMm / (2 * Math.PI.toFloat())
+        val cell = circumferenceMm / w
+        val n = w * h
+        val floorRow = (h - 1 - (floorMm / cell).toInt()).coerceIn(1, h - 1)  // inner wall ends here
+        val pos = FloatArray((n * 2 + 2) * 3)
+        val col = FloatArray((n * 2 + 2) * 3) { 0.85f }
+        for (y in 0 until h) for (x in 0 until w) {
+            val i = y * w + x
+            val a = 2 * Math.PI * x / w
+            val z = (h - 1 - y) * cell
+            for ((layer, rad) in listOf(0 to r + heights[i], 1 to r)) {
+                val v = (layer * n + i) * 3
+                pos[v] = (rad * kotlin.math.cos(a)).toFloat(); pos[v + 1] = (rad * kotlin.math.sin(a)).toFloat()
+                pos[v + 2] = if (layer == 1) max(z, (h - 1 - floorRow) * cell) else z
+                if (colors != null) System.arraycopy(colors, i * 3, col, v, 3)
+            }
+        }
+        val under = n * 2; val inside = n * 2 + 1  // centres of the underside and of the inner floor
+        pos[inside * 3 + 2] = (h - 1 - floorRow) * cell
+        val tri = IntList()
+        fun quad(a: Int, b: Int, c: Int, d: Int) { tri.add(a); tri.add(b); tri.add(c); tri.add(a); tri.add(c); tri.add(d) }
+        fun out(x: Int, y: Int) = y * w + x % w
+        fun inn(x: Int, y: Int) = n + y * w + x % w
+        for (x in 0 until w) {
+            for (y in 0 until h - 1) quad(out(x, y), out(x, y + 1), out(x + 1, y + 1), out(x + 1, y))
+            for (y in 0 until floorRow) quad(inn(x, y), inn(x + 1, y), inn(x + 1, y + 1), inn(x, y + 1))
+            quad(out(x, 0), out(x + 1, 0), inn(x + 1, 0), inn(x, 0))  // rim
+            tri.add(out(x + 1, h - 1)); tri.add(out(x, h - 1)); tri.add(under)
+            tri.add(inn(x, floorRow)); tri.add(inn(x + 1, floorRow)); tri.add(inside)
+        }
+        return finish(pos, col, tri.toArray())
+    }
+
+    /**
      * Blocky solid: one flat-topped column per cell, heights taken from [levels] (a small set
      * of distinct values, e.g. plate and raised modules). Cells of height 0 are left empty.
      * Walls are split at every level so neighbouring faces always share whole edges (no

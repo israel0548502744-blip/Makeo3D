@@ -39,6 +39,21 @@ import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Science
+import androidx.compose.material.icons.rounded.ContentCut
+import androidx.compose.material.icons.rounded.Kitchen
+import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.FilterFrames
+import androidx.compose.material.icons.rounded.Cake
+import androidx.compose.material.icons.rounded.Diamond
+import androidx.compose.material.icons.rounded.Signpost
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.MilitaryTech
+import androidx.compose.material.icons.rounded.LocalFlorist
+import androidx.compose.material.icons.rounded.Nightlight
+import androidx.compose.material.icons.rounded.Extension
+import androidx.compose.material.icons.rounded.Verified
+import androidx.compose.material.icons.rounded.Pets
+import androidx.compose.material.icons.rounded.Inventory2
 import androidx.compose.material.icons.rounded.Terrain
 import androidx.compose.material.icons.rounded.ViewInAr
 import androidx.compose.material3.AlertDialog
@@ -84,6 +99,21 @@ fun Creations.Kind.icon(): ImageVector = when (this) {
     Creations.Kind.COOKIE -> Icons.Rounded.Cookie
     Creations.Kind.STAMP -> Icons.Rounded.Approval
     Creations.Kind.MOLD -> Icons.Rounded.Science
+    Creations.Kind.STENCIL -> Icons.Rounded.ContentCut
+    Creations.Kind.MAGNET -> Icons.Rounded.Kitchen
+    Creations.Kind.STAND -> Icons.Rounded.PhoneAndroid
+    Creations.Kind.FRAME -> Icons.Rounded.FilterFrames
+    Creations.Kind.TOPPER -> Icons.Rounded.Cake
+    Creations.Kind.PENDANT -> Icons.Rounded.Diamond
+    Creations.Kind.SIGN -> Icons.Rounded.Signpost
+    Creations.Kind.BOOKMARK -> Icons.Rounded.Bookmark
+    Creations.Kind.MEDAL -> Icons.Rounded.MilitaryTech
+    Creations.Kind.PLANTER -> Icons.Rounded.LocalFlorist
+    Creations.Kind.NIGHT -> Icons.Rounded.Nightlight
+    Creations.Kind.PUZZLE -> Icons.Rounded.Extension
+    Creations.Kind.SEAL -> Icons.Rounded.Verified
+    Creations.Kind.PETTAG -> Icons.Rounded.Pets
+    Creations.Kind.BOX -> Icons.Rounded.Inventory2
 }
 
 fun Creations.Kind.blurb(): String = when (this) {
@@ -94,6 +124,21 @@ fun Creations.Kind.blurb(): String = when (this) {
     Creations.Kind.COOKIE -> tr("מציור או מתמונה")
     Creations.Kind.STAMP -> tr("לבצק, חימר ושעווה")
     Creations.Kind.MOLD -> tr("לנרות, סבון, גבס וסיליקון")
+    Creations.Kind.STENCIL -> tr("לריסוס ולקישוט")
+    Creations.Kind.MAGNET -> tr("למקרר, מתמונה")
+    Creations.Kind.STAND -> tr("עם שם")
+    Creations.Kind.FRAME -> tr("עם כיתוב")
+    Creations.Kind.TOPPER -> tr("שם או צורה")
+    Creations.Kind.PENDANT -> tr("או זוג עגילים")
+    Creations.Kind.SIGN -> tr("לדלת או לחדר")
+    Creations.Kind.BOOKMARK -> tr("עם שם")
+    Creations.Kind.MEDAL -> tr("פנים כתבליט")
+    Creations.Kind.PLANTER -> tr("תבליט מסביב")
+    Creations.Kind.NIGHT -> tr("ליתופן עם בסיס")
+    Creations.Kind.PUZZLE -> tr("מתמונה")
+    Creations.Kind.SEAL -> tr("למכתבים")
+    Creations.Kind.PETTAG -> tr("שם וטלפון")
+    Creations.Kind.BOX -> tr("שם על המכסה")
 }
 
 /**

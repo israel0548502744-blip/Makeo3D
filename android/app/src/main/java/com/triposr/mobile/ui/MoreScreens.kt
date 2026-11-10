@@ -51,6 +51,7 @@ import androidx.compose.material.icons.rounded.Grid4x4
 import androidx.compose.material.icons.rounded.GridOn
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Autorenew
@@ -97,6 +98,7 @@ import com.triposr.mobile.BuildConfig
 import com.triposr.mobile.CrashLog
 import com.triposr.mobile.ExportFormat
 import com.triposr.mobile.MeshTools
+import com.triposr.mobile.Creations
 import com.triposr.mobile.MeshView
 import com.triposr.mobile.ModelStore
 import com.triposr.mobile.Project
@@ -225,6 +227,11 @@ fun ResultScreen() {
             }
             if (project.group != "craft") SoftButton(tr("צור מחדש מאותה תמונה"), Modifier.fillMaxWidth(), Icons.Rounded.Autorenew) {
                 AppState.recreate(project)
+            }
+            if (project.group != "craft") {
+                SoftButton(Creations.busy ?: tr("תבנית יציקה משני חצאים"), Modifier.fillMaxWidth(), Icons.Rounded.Science,
+                    enabled = Creations.busy == null) { Creations.moldOf(mesh) }
+                Creations.error?.let { Text(it, color = C.Red, fontSize = 13.sp) }
             }
             var video by remember { mutableStateOf<Float?>(null) }
             SoftButton(video?.let { tr("מכין סרטון… {0}%", (it * 100).toInt()) } ?: tr("שתף סרטון (טיקטוק, אינסטגרם)"),

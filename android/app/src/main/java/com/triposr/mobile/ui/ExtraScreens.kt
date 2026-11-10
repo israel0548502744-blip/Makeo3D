@@ -46,6 +46,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -100,11 +101,16 @@ fun ExtraScreen() {
     var moldMm by remember { mutableFloatStateOf(12f) }
     var moldMaster by remember { mutableStateOf(false) }
     var moldRelief by remember { mutableStateOf(false) }
+    var wick by remember { mutableStateOf(false) }
+    var copies by remember { mutableStateOf(1) }
+    var alt by remember { mutableStateOf(false) }
+    val sizes = remember { mutableStateMapOf<Creations.Kind, Float>() }
+    val size = sizes[kind] ?: kind.def
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) image = Actions.loadBitmap(ctx, uri) ?: run { Actions.toast(ctx, tr("לא הצלחתי לפתוח את התמונה")); null }
     }
     val busy = Creations.busy
-    val usesImage = kind.needsImage || (kind == Creations.Kind.STAMP && stampImage)
+    val usesImage = kind.needsImage || (kind == Creations.Kind.STAMP && stampImage) || kind.need == Creations.Need.EITHER
     val fieldColors = OutlinedTextFieldDefaults.colors(focusedTextColor = C.Text, unfocusedTextColor = C.Text,
         focusedBorderColor = C.Violet, unfocusedBorderColor = C.Faint, focusedLabelColor = C.Violet, unfocusedLabelColor = C.Sub)
 
@@ -129,6 +135,7 @@ fun ExtraScreen() {
                     tr("במגע עם מזון: הבטיחות תלויה בחומר, במדפסת ובניקוי.")
                 Creations.Kind.MOLD -> tr("תבנית בצורה של האובייקט או הציור שבתמונה. מדפיסים ויוצקים פנימה שעוות נרות, סבון, גבס, בטון או שרף. ") +
                     tr("הדפנות משופעות כדי שהיציקה תשתחרר; כדאי למרוח חומר מפריד (שמן או וזלין). לשעווה חמה עדיף PETG, כי PLA מתרכך בחום. לא למזון.")
+                else -> kind.about
             }, color = C.Sub, fontSize = 13.sp)
 
             when (kind) {
@@ -158,6 +165,8 @@ fun ExtraScreen() {
                 }
                 else -> {}
             }
+            kind.textLabel?.let { label -> Field(text, label, { text = it }) }
+            if (kind != Creations.Kind.QR) kind.secondLabel?.let { label -> Field(second, label, { second = it }, KeyboardType.Phone) }
 
             if (usesImage) {
                 Box(Modifier.fillMaxWidth().height(260.dp).glass(RoundedCornerShape(26.dp))
@@ -223,10 +232,23 @@ fun ExtraScreen() {
                     Slider(cookieMm, { cookieMm = (it / 5).toInt() * 5f }, valueRange = 40f..140f, colors = sliderColors())
                     Text(tr("עומק היציקה: %.0f מ״מ").format(moldMm), color = C.Text, fontSize = 14.sp)
                     Slider(moldMm, { moldMm = it.toInt().toFloat() }, valueRange = 5f..30f, colors = sliderColors())
+                    if (!moldMaster) ToggleRow(tr("חור לפתיל"), tr("לנרות: חור קטן בתחתית התבנית להשחלת הפתיל"), wick) { wick = it }
+                    Text(tr("כמה תבניות במגש"), color = C.Text, fontSize = 14.sp)
+                    ChoiceChips(listOf(1, 2, 4, 6), copies, { it.toString() }, { copies = it })
                 }
                 Creations.Kind.QR -> {}
+                else -> if (kind.max > 0f || kind.toggle != null || kind == Creations.Kind.STENCIL || kind == Creations.Kind.MEDAL)
+                    Section(title = tr("אפשרויות")) {
+                        if (kind == Creations.Kind.STENCIL) ToggleRow(tr("הסרת רקע"), tr("לתמונה של אובייקט. כבוי: הצורה היא הקווים הכהים בציור"), flatBg) { flatBg = it }
+                        if (kind == Creations.Kind.MEDAL) ToggleRow(tr("רקע שטוח"), tr("רק הדמות בולטת"), flatBg) { flatBg = it }
+                        kind.toggle?.let { ToggleRow(it, "", alt) { v -> alt = v } }
+                        if (kind.max > 0f) {
+                            Text((kind.sizeLabel ?: "%.0f").format(size), color = C.Text, fontSize = 14.sp)
+                            Slider(size, { sizes[kind] = it.toInt().toFloat() }, valueRange = kind.min..kind.max, colors = sliderColors())
+                        }
+                    }
             }
-            Text(if ((kind.needsImage && kind != Creations.Kind.COOKIE && kind != Creations.Kind.MOLD && !(kind == Creations.Kind.LITHOPHANE && lamp)) || kind == Creations.Kind.QR) tr("גודל: 100 מ״מ בצלע הארוכה. אחרי היצירה תמצא ייצוא 3MF/STL להדפסה.")
+            Text(if ((kind.need == Creations.Need.OLD && kind.needsImage && kind != Creations.Kind.COOKIE && kind != Creations.Kind.MOLD && !(kind == Creations.Kind.LITHOPHANE && lamp)) || kind == Creations.Kind.QR) tr("גודל: 100 מ״מ בצלע הארוכה. אחרי היצירה תמצא ייצוא 3MF/STL להדפסה.")
                 else tr("המודל נשמר בגודל האמיתי שבחרת. אחרי היצירה תמצא ייצוא 3MF/STL להדפסה."), color = C.Faint, fontSize = 12.sp)
             Creations.error?.let { Text(it, color = C.Red, fontSize = 13.sp) }
             Spacer(Modifier.height(4.dp))
@@ -238,7 +260,12 @@ fun ExtraScreen() {
                 Spacer(Modifier.width(8.dp))
                 Text(busy, color = C.Sub, fontSize = 13.sp)
             }
-            val ready = when (kind) {
+            val ready = if (kind.need != Creations.Need.OLD) when (kind.need) {
+                Creations.Need.IMAGE -> image != null
+                Creations.Need.TEXT -> text.isNotBlank()
+                Creations.Need.EITHER -> text.isNotBlank() || image != null
+                else -> true
+            } else when (kind) {
                 Creations.Kind.QR, Creations.Kind.NAME -> text.isNotBlank()
                 Creations.Kind.RELIEF -> image != null && Extras.ready(ctx, Extras.DEPTH)
                 Creations.Kind.STAMP -> if (stampImage) image != null else text.isNotBlank()
@@ -246,13 +273,13 @@ fun ExtraScreen() {
                 else -> image != null
             }
             GradientButton(tr("צור {0}", kind.label), Modifier.fillMaxWidth(), sparkles = true, enabled = ready && busy == null) {
-                val size = when (kind) {
+                val mm = if (kind.max > 0f) size else when (kind) {
                     Creations.Kind.NAME -> letterMm
                     Creations.Kind.COOKIE, Creations.Kind.MOLD -> cookieMm
                     else -> stampMm
                 }
-                Creations.create(kind, image, text, Creations.Options(frame, maxMm, invert, if (kind == Creations.Kind.MOLD) moldMm else reliefMm, flatBg, size, keyring, tagStyle,
-                    if (lamp) lampMm else 0f, stampImage, qrType, second, caption, moldMaster, moldRelief))
+                Creations.create(kind, image, text, Creations.Options(frame, maxMm, invert, if (kind == Creations.Kind.MOLD) moldMm else reliefMm, flatBg, mm, keyring, tagStyle,
+                    if (lamp) lampMm else 0f, stampImage, qrType, second, caption, moldMaster, moldRelief, wick, copies, alt))
             }
         }
     }

@@ -16,15 +16,57 @@ import kotlinx.coroutines.withContext
 /**
  * Print products that don't need the 3D model: lithophane (light shines through a photo),
  * relief (photo raised by its depth, needs the depth extra), QR code plates (link, Wi-Fi,
- * WhatsApp...), name keychains, cookie cutters, stamps and casting molds.
+ * WhatsApp...), name keychains, cookie cutters, stamps and casting molds. More products are in [Crafts].
  * Photo products are 100 mm on the longest side; templates keep the size the user picked
  * (Mesh.sizeMm), and the print export uses that size, so thicknesses stay exactly as designed.
  */
 object Creations {
-    enum class Kind(val label: String, val needsImage: Boolean) {
+    /** What a product needs before it can be made (OLD: the first products, decided in the screen). */
+    enum class Need { OLD, IMAGE, TEXT, EITHER, NONE }
+
+    enum class Kind(val label: String, val needsImage: Boolean, val need: Need = Need.OLD,
+                    val textLabel: String? = null, val secondLabel: String? = null, val toggle: String? = null,
+                    val sizeLabel: String? = null, val min: Float = 0f, val max: Float = 0f, val def: Float = 0f,
+                    val about: String = "") {
         LITHOPHANE(tr("ליתופן"), true), RELIEF(tr("תבליט"), true), QR(tr("קוד QR"), false),
         NAME(tr("מחזיק מפתחות"), false), COOKIE(tr("חותכן עוגיות"), true), STAMP(tr("חותמת"), false),
-        MOLD(tr("תבנית יציקה"), true),
+        MOLD(tr("תבנית יציקה"), true, textLabel = tr("כיתוב שקוע ביציקה (לא חובה)")),
+        STENCIL(tr("שבלונה"), true, Need.IMAGE, sizeLabel = tr("גודל: %.0f מ״מ"), min = 60f, max = 180f, def = 100f,
+            about = tr("לוח דק שהצורה חתוכה בו, לריסוס צבע או לפיזור קקאו ואבקת סוכר. בציור, חלקים סגורים בתוך קו ייפלו החוצה.")),
+        MAGNET(tr("מגנט"), true, Need.IMAGE, sizeLabel = tr("גודל: %.0f מ״מ"), min = 40f, max = 90f, def = 60f,
+            about = tr("האובייקט שבתמונה כלוחית צבעונית, עם שקע מאחור למגנט עגול בקוטר 10 מ״מ (מדביקים אותו).")),
+        STAND(tr("מעמד לטלפון"), false, Need.NONE, textLabel = tr("שם על המעמד (לא חובה)"),
+            about = tr("מעמד לטלפון ברוחב 60 מ״מ, מודפס על הצד בלי תמיכות. השם בולט על הדופן.")),
+        FRAME(tr("מסגרת לתמונה"), false, Need.NONE, textLabel = tr("כיתוב על המסגרת (לא חובה)"),
+            sizeLabel = tr("אורך התמונה: %.0f מ״מ"), min = 90f, max = 150f, def = 130f,
+            about = tr("מסגרת לתמונה מודפסת ביחס 2:3 (למשל 10×15 או 9×13), עם שקע מאחור שמחזיק אותה.")),
+        TOPPER(tr("קישוט לעוגה"), false, Need.EITHER, textLabel = tr("שם או ברכה (או בחר תמונה)"),
+            sizeLabel = tr("רוחב: %.0f מ״מ"), min = 60f, max = 160f, def = 110f,
+            about = tr("שם, ברכה או צורה מתמונה על מקלות שננעצים בעוגה. הקובץ אינו אישור בטיחות למזון.")),
+        PENDANT(tr("תליון"), true, Need.IMAGE, toggle = tr("זוג עגילים"), sizeLabel = tr("גודל: %.0f מ״מ"), min = 20f, max = 60f, def = 35f,
+            about = tr("האובייקט שבתמונה כתליון עם לולאה לשרשרת. \"זוג עגילים\" מדפיס שניים, אחד הפוך מהשני.")),
+        SIGN(tr("שלט"), false, Need.TEXT, textLabel = tr("שם או טקסט"), sizeLabel = tr("גובה אותיות: %.0f מ״מ"), min = 20f, max = 60f, def = 35f,
+            about = tr("שלט לדלת או לחדר: אותיות גדולות בולטות על לוח. החלף פילמנט בגובה 2.4 מ״מ לשני צבעים.")),
+        BOOKMARK(tr("סימנייה"), false, Need.TEXT, textLabel = tr("שם או טקסט"),
+            about = tr("סימנייה דקה (3×14 ס״מ) עם השם לאורכה וחור לחוט.")),
+        MEDAL(tr("מדליון דיוקן"), true, Need.IMAGE, textLabel = tr("שם על המדליון (לא חובה)"),
+            sizeLabel = tr("קוטר: %.0f מ״מ"), min = 50f, max = 100f, def = 70f,
+            about = tr("מדליון עגול עם הפנים (או החפץ) שבתמונה כתבליט, ושם מתחת. צריך את \"מפת עומק\" מהשיפורים.")),
+        PLANTER(tr("עציץ"), true, Need.IMAGE, sizeLabel = tr("קוטר: %.0f מ״מ"), min = 60f, max = 120f, def = 80f,
+            about = tr("עציץ קטן שהתמונה עוטפת אותו כתבליט. בלי חור ניקוז, מתאים לכיסוי עציץ או לצמח מלאכותי.")),
+        NIGHT(tr("מנורת לילה"), true, Need.IMAGE,
+            about = tr("ליתופן עם בסיס: מעמידים את הלוח בחריץ שבבסיס ושמים מאחוריו נר LED. מודפס בלבן.")),
+        PUZZLE(tr("פאזל"), true, Need.IMAGE, toggle = tr("יותר חלקים (4 בשורה)"), sizeLabel = tr("גודל: %.0f מ״מ"), min = 80f, max = 140f, def = 110f,
+            about = tr("התמונה כתבליט, חתוכה לחלקי פאזל שמודפסים מופרדים ומתחברים זה לזה.")),
+        SEAL(tr("חותם שעווה"), false, Need.EITHER, textLabel = tr("אות או שתיים (או בחר ציור)"),
+            sizeLabel = tr("קוטר: %.0f מ״מ"), min = 20f, max = 35f, def = 25f,
+            about = tr("חותם עגול עם ידית למכתבים. העיטור שקוע והפוך, כך שבשעווה הוא יוצא בולט וישר. מודפס בעמידה על הידית.")),
+        PETTAG(tr("תג לחיית מחמד"), false, Need.TEXT, textLabel = tr("שם החיה"), secondLabel = tr("טלפון (לא חובה)"),
+            sizeLabel = tr("רוחב: %.0f מ״מ"), min = 30f, max = 55f, def = 40f,
+            about = tr("תג בצורת עצם לקולר, עם השם, הטלפון וחור לטבעת.")),
+        BOX(tr("קופסה עם מכסה"), false, Need.NONE, textLabel = tr("שם על המכסה (לא חובה)"),
+            sizeLabel = tr("רוחב: %.0f מ״מ"), min = 50f, max = 110f, def = 70f,
+            about = tr("קופסה מרובעת ומכסה שנח על מדף פנימי. השם בולט על המכסה.")),
     }
 
     class Options(
@@ -48,6 +90,12 @@ object Creations {
         val moldMaster: Boolean = false,
         /** Casting mold: the face follows the picture's depth (needs the depth extra). */
         val moldRelief: Boolean = false,
+        /** Casting mold: a hole in the floor for a candle wick. */
+        val wick: Boolean = false,
+        /** Casting mold: how many copies side by side (1, 2, 4 or 6). */
+        val copies: Int = 1,
+        /** The product's own switch ([Kind.toggle]). */
+        val alt: Boolean = false,
     )
 
     /** Status line while something is being built, null when idle. */
@@ -57,30 +105,51 @@ object Creations {
     private const val SIZE_MM = Printability.TARGET_MM
     private const val SAMPLES = 300 // along the longest side: 0.33 mm per sample at 100 mm
 
-    fun create(kind: Kind, image: Bitmap?, text: String, o: Options) {
+    fun create(kind: Kind, image: Bitmap?, text: String, o: Options) = build(kind.label, kind.name, image) {
+        when (kind) {
+            Kind.LITHOPHANE -> lithophane(image!!, o)
+            Kind.RELIEF -> relief(image!!, o)
+            Kind.QR -> qr(Templates.qrPayload(o.qrType, text, o.qrSecond), o.caption)
+            Kind.NAME -> nameTag(text, o)
+            Kind.COOKIE -> cookie(image!!, o)
+            Kind.STAMP -> stamp(image, text, o)
+            Kind.MOLD -> mold(image!!, text, o)
+            Kind.STENCIL -> Crafts.stencil(image!!, o)
+            Kind.MAGNET -> Crafts.magnet(image!!, o)
+            Kind.STAND -> Crafts.stand(text)
+            Kind.FRAME -> Crafts.frame(text, o)
+            Kind.TOPPER -> Crafts.topper(image, text, o)
+            Kind.PENDANT -> Crafts.pendant(image!!, o)
+            Kind.SIGN -> Crafts.sign(text, o)
+            Kind.BOOKMARK -> Crafts.bookmark(text)
+            Kind.MEDAL -> Crafts.medal(image!!, text, o)
+            Kind.PLANTER -> Crafts.planter(image!!, o)
+            Kind.NIGHT -> Crafts.nightLight(image!!, o)
+            Kind.PUZZLE -> Crafts.puzzle(image!!, o)
+            Kind.SEAL -> Crafts.seal(image, text, o)
+            Kind.PETTAG -> Crafts.petTag(text, o.qrSecond, o)
+            Kind.BOX -> Crafts.box(text, o)
+        }
+    }
+
+    /** Two-half casting mold of a finished 3D model. */
+    fun moldOf(mesh: Mesh) = build(tr("תבנית משני חצאים"), "MOLD2", null) { Crafts.twoPartMold(mesh) }
+
+    private fun build(label: String, kindName: String, image: Bitmap?, make: () -> Pair<Mesh, Bitmap>) {
         if (busy != null) return
-        busy = tr("יוצר {0}…", kind.label); error = null
-        val app = AppState.app
+        busy = tr("יוצר {0}…", label); error = null
         AppState.scope.launch {
             try {
                 val t0 = System.nanoTime()
-                val (mesh, thumb) = when (kind) {
-                    Kind.LITHOPHANE -> lithophane(image!!, o)
-                    Kind.RELIEF -> relief(image!!, o)
-                    Kind.QR -> qr(Templates.qrPayload(o.qrType, text, o.qrSecond), o.caption)
-                    Kind.NAME -> nameTag(text, o)
-                    Kind.COOKIE -> cookie(image!!, o)
-                    Kind.STAMP -> stamp(image, text, o)
-                    Kind.MOLD -> mold(image!!, o)
-                }
+                val (mesh, thumb) = make()
                 val seconds = (System.nanoTime() - t0) / 1e9
-                val p = AppState.saveProject(mesh, thumb, "—", kind.label, seconds, emptyMap(),
-                    name = "${kind.label} ${AppState.projects.count { it.quality == kind.label } + 1}",
-                    source = image, kind = kind.name)
-                CrashLog.log("Created ${kind.name} in %.1fs: ${mesh.triangleCount} triangles".format(seconds))
+                val p = AppState.saveProject(mesh, thumb, "—", label, seconds, emptyMap(),
+                    name = "$label ${AppState.projects.count { it.quality == label } + 1}",
+                    source = image, kind = kindName)
+                CrashLog.log("Created $kindName in %.1fs: ${mesh.triangleCount} triangles".format(seconds))
                 withContext(Dispatchers.Main) { AppState.showNew(mesh, p) }
             } catch (e: Throwable) {
-                CrashLog.error("create ${kind.name}", e)
+                CrashLog.error("create $kindName", e)
                 error = (e.message ?: e.javaClass.simpleName).take(200)
             } finally {
                 busy = null
@@ -223,7 +292,7 @@ object Creations {
     }
 
     /** Casting mold of the picture's shape: sizeMm = longest side, reliefMm = how deep. */
-    private fun mold(src: Bitmap, o: Options): Pair<Mesh, Bitmap> {
+    private fun mold(src: Bitmap, text: String, o: Options): Pair<Mesh, Bitmap> {
         val app = AppState.app
         if (o.moldRelief && !Extras.ready(app, Extras.DEPTH)) throw IllegalStateException(tr("תבנית עם עומק צריכה את \"מפת עומק\" מהשיפורים בהגדרות"))
         var m = Templates.largest(shape(src, 220, removeBackground = o.flatBackground))
@@ -232,8 +301,16 @@ object Creations {
         val depth = if (o.moldRelief) Heightfield.normalizeDepth(Enhance.depth(app, src, m.w, m.h),
             FloatArray(m.w * m.h) { if (m.cells[it]) 1f else 0f }) else null
         val b = m.bounds()!!
-        val cell = o.sizeMm / maxOf(b[2] - b[0] + 1, b[3] - b[1] + 1)
-        return Templates.castingMold(m, depth, cell, o.reliefMm, o.moldMaster) to preview(m)
+        val bw = b[2] - b[0] + 1; val bh = b[3] - b[1] + 1
+        val cell = o.sizeMm / maxOf(bw, bh)
+        // Optional writing in the middle of the shape, sunk into the cast.
+        val mark = if (text.isBlank()) null else {
+            val t = Crafts.fitText(text, bh * cell * 0.22f, bw * cell * 0.6f, cell)
+            val ox = b[0] + (bw - t.w) / 2; val oy = b[1] + (bh - t.h) / 2
+            BooleanArray(m.w * m.h) { t[it % m.w - ox, it / m.w - oy] }
+        }
+        val (cols, rows) = when (o.copies) { 2 -> 2 to 1; 4 -> 2 to 2; 6 -> 3 to 2; else -> 1 to 1 }
+        return Templates.castingMold(m, depth, cell, o.reliefMm, o.moldMaster, mark, o.wick && !o.moldMaster, cols, rows) to preview(m)
     }
 
     private fun stamp(src: Bitmap?, text: String, o: Options): Pair<Mesh, Bitmap> {
