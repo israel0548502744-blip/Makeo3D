@@ -89,6 +89,8 @@ class ScreenshotTest {
 
     @Before
     fun setUp() {
+        // The test machine's language is English; the app's main language is Hebrew.
+        I18n.setChoice(ctx, I18n.Choice.HE); I18n.init(ctx)
         ReflectionHelpers.setStaticField(Build::class.java, "SOC_MANUFACTURER", "QTI")
         ReflectionHelpers.setStaticField(Build::class.java, "SOC_MODEL", "SM8750")
         // Model downloaded.
