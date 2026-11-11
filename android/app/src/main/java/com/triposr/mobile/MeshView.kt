@@ -34,6 +34,89 @@ class MeshView(context: Context) : GLSurfaceView(context) {
 
     private var lastMesh: Mesh? = null
 
+    // ---- touch-up (see MeshEditor): one finger rubs, two fingers move and zoom
+    enum class Tool { ROTATE, ERASE, SMOOTH }
+    var editor: MeshEditor? = null; private set
+    var tool = Tool.ROTATE
+    /** Brush radius in view pixels. */
+    var brushPx = 60f
+    /** Reach through the object instead of only the surface facing the camera. */
+    var through = false
+    /** Where the brush is, and whether it is down (for drawing the ring). */
+    var onBrush: ((Float, Float, Boolean) -> Unit)? = null
+    /** A stroke ended. */
+    var onStroke: (() -> Unit)? = null
+    private var multi = false
+    private var stroked = false
+    private val camera = FloatArray(16)
+    private val queued = java.util.concurrent.atomic.AtomicBoolean()
+    @Volatile private var positionsDirty = false
+
+    /** Starts touching up the mesh on show; drawn without its texture while this lasts. */
+    fun startEdit(): MeshEditor? {
+        val m = lastMesh ?: return null
+        val e = MeshEditor(m)
+        editor = e; tool = Tool.ERASE
+        renderer.plain = true
+        queueEvent { renderer.upload(m) }
+        requestRender()
+        return e
+    }
+
+    fun stopEdit() {
+        if (editor == null) return
+        editor = null; tool = Tool.ROTATE
+        renderer.plain = false
+        val m = lastMesh
+        queueEvent { renderer.upload(m) }
+        requestRender()
+    }
+
+    /** Shows the editor's state: after undo or removing loose pieces. */
+    fun refreshEdit() {
+        val e = editor ?: return
+        val n = e.normals()
+        queueEvent { renderer.update(e.positions, n, e.indices) }
+        requestRender()
+    }
+
+    private fun push(e: MeshEditor, positions: Boolean) {
+        if (positions) positionsDirty = true
+        // One upload per frame at most, always of the newest state.
+        if (queued.compareAndSet(false, true)) queueEvent {
+            queued.set(false)
+            val p = positionsDirty; positionsDirty = false
+            renderer.update(if (p) e.positions else null, null, e.indices)
+        }
+        requestRender()
+    }
+
+    private fun dab(e: MeshEditor, x: Float, y: Float) {
+        renderer.cameraInto(camera)
+        val verts = e.pick(camera, width, height, x, y, brushPx, through)
+        if (tool == Tool.ERASE) e.erase(verts) else e.smooth(verts)
+        stroked = true
+        onBrush?.invoke(x, y, true)
+        push(e, tool == Tool.SMOOTH)
+    }
+
+    /** Handles a brush touch. False = not a brush gesture (two fingers), let the camera have it. */
+    private fun brushTouch(e: MeshEditor, ev: MotionEvent): Boolean {
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> { multi = false; stroked = false }
+            MotionEvent.ACTION_POINTER_DOWN -> { multi = true; onBrush?.invoke(0f, 0f, false) }
+            MotionEvent.ACTION_MOVE -> if (!multi) dab(e, ev.x, ev.y)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                // A tap without a move is one dab; a touch that became two fingers is none.
+                if (!multi && !stroked && ev.actionMasked == MotionEvent.ACTION_UP) dab(e, ev.x, ev.y)
+                e.endStroke()
+                onBrush?.invoke(0f, 0f, false)
+                if (stroked) { if (tool == Tool.SMOOTH) refreshEdit(); onStroke?.invoke() }
+            }
+        }
+        return !multi
+    }
+
     fun setMesh(mesh: Mesh?) {
         if (mesh === lastMesh) return
         lastMesh = mesh
@@ -59,6 +142,11 @@ class MeshView(context: Context) : GLSurfaceView(context) {
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
         scaleDetector.onTouchEvent(e)
+        val ed = editor
+        if (ed != null && tool != Tool.ROTATE && brushTouch(ed, e)) {
+            parent?.requestDisallowInterceptTouchEvent(true)
+            return true
+        }
         val x = (0 until e.pointerCount).map { e.getX(it) }.average().toFloat()
         val y = (0 until e.pointerCount).map { e.getY(it) }.average().toFloat()
         when (e.actionMasked) {
@@ -106,6 +194,46 @@ internal class MeshRenderer : GLSurfaceView.Renderer {
     private val model = FloatArray(16)
     private val mvp = FloatArray(16)
     private var current: Mesh? = null
+    /** Draw without the baked texture (the touch-up changes the shared vertices). */
+    @Volatile var plain = false
+    private var scratch: ByteBuffer? = null
+
+    /** A reused direct buffer of at least [bytes]: touch-up uploads many times a second. */
+    private fun room(bytes: Int): ByteBuffer {
+        val b = scratch?.takeIf { it.capacity() >= bytes }
+            ?: ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder()).also { scratch = it }
+        b.clear()
+        return b
+    }
+
+    /** Replaces parts of what is drawn (GL thread). Null = leave as is. */
+    fun update(positions: FloatArray?, normals: FloatArray?, indices: IntArray?) {
+        if (program == 0) return
+        for ((slot, data) in listOf(0 to positions, 1 to normals)) {
+            if (data == null) continue
+            val b = room(data.size * 4); b.asFloatBuffer().put(data)
+            GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, vbo[slot])
+            GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, data.size * 4, b, GLES30.GL_DYNAMIC_DRAW)
+        }
+        if (indices != null) {
+            val b = room(maxOf(indices.size * 4, 4)); b.asIntBuffer().put(indices)
+            GLES30.glBindBuffer(GLES30.GL_ELEMENT_ARRAY_BUFFER, vbo[3])
+            GLES30.glBufferData(GLES30.GL_ELEMENT_ARRAY_BUFFER, indices.size * 4, b, GLES30.GL_DYNAMIC_DRAW)
+            indexCount = indices.size
+            lineCount = 0
+        }
+    }
+
+    /** The camera matrix as drawn, for finding what is under a finger (any thread). */
+    fun cameraInto(out: FloatArray) {
+        val v = FloatArray(16); val m = FloatArray(16); val vm = FloatArray(16)
+        Matrix.setLookAtM(v, 0, panX, panY + 0.1f, distance, panX, panY, 0f, 0f, 1f, 0f)
+        Matrix.setIdentityM(m, 0)
+        Matrix.rotateM(m, 0, pitch, 1f, 0f, 0f)
+        Matrix.rotateM(m, 0, yaw, 0f, 1f, 0f)
+        Matrix.multiplyMM(vm, 0, v, 0, m, 0)
+        Matrix.multiplyMM(out, 0, proj, 0, vm, 0)
+    }
 
     fun upload(mesh: Mesh?) {
         current = mesh
@@ -116,7 +244,7 @@ internal class MeshRenderer : GLSurfaceView.Renderer {
         fun fbuf(a: FloatArray) = ByteBuffer.allocateDirect(a.size * 4).order(ByteOrder.nativeOrder()).asFloatBuffer().put(a).position(0)
         fun ibuf(a: IntArray) = ByteBuffer.allocateDirect(a.size * 4).order(ByteOrder.nativeOrder()).asIntBuffer().put(a).position(0)
         // A baked texture needs one vertex per (vertex, UV) pair; otherwise draw the shared vertices.
-        val t = mesh.texturedArrays()
+        val t = if (plain) null else mesh.texturedArrays()
         val indices = t?.indices ?: mesh.indices
         val arrays = if (t != null) listOf(0 to t.positions, 1 to t.normals, 6 to t.uvs)
             else listOf(0 to mesh.positions, 1 to mesh.normals, 2 to mesh.colors)
@@ -222,7 +350,7 @@ internal class MeshRenderer : GLSurfaceView.Renderer {
 
     override fun onDrawFrame(gl: GL10?) {
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
-        if (indexCount == 0) return
+        if (indexCount == 0 && current == null) return
         if (autoRotate) yaw += 0.4f
         Matrix.setLookAtM(view, 0, panX, panY + 0.1f, distance, panX, panY, 0f, 0f, 1f, 0f)
         Matrix.setIdentityM(model, 0)
@@ -275,7 +403,7 @@ internal class MeshRenderer : GLSurfaceView.Renderer {
         GLES30.glDrawElements(GLES30.GL_TRIANGLES, indexCount, GLES30.GL_UNSIGNED_INT, 0)
         GLES30.glDisable(GLES30.GL_POLYGON_OFFSET_FILL)
 
-        if (wireframe) {
+        if (wireframe && lineCount > 0) {
             GLES30.glUniform1i(loc("uFlat"), 1)
             GLES30.glUniform4f(loc("uFlatColor"), 0.55f, 0.4f, 1f, 0.55f)
             GLES30.glBindBuffer(GLES30.GL_ELEMENT_ARRAY_BUFFER, vbo[4])

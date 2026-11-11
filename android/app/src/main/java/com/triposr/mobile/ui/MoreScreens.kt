@@ -45,6 +45,11 @@ import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.CenterFocusStrong
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.AutoFixHigh
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Fullscreen
+import androidx.compose.material.icons.rounded.FullscreenExit
+import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Download
@@ -144,6 +149,16 @@ fun ResultScreen() {
     var baseCut by remember { mutableFloatStateOf(0f) }
     var tab by remember { mutableStateOf(0) }
     var video by remember { mutableStateOf<Float?>(null) }
+    // Touch-up: rubbing parts away or flat, on a model that fills the screen.
+    var clean by remember { mutableStateOf<com.triposr.mobile.MeshEditor?>(null) }
+    var tool by remember { mutableStateOf(MeshView.Tool.ERASE) }
+    var brush by remember { mutableFloatStateOf(60f) }
+    var through by remember { mutableStateOf(false) }
+    var ring by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
+    var cleaned by remember { mutableStateOf<Mesh?>(null) }
+    var big by remember { mutableStateOf(false) }
+    fun leaveClean() { view?.stopEdit(); clean = null; ring = null }
+    androidx.activity.compose.BackHandler(enabled = clean != null || big) { if (clean != null) leaveClean() else big = false }
     LaunchedEffect(mesh, baseCut) {
         print = null; thinPreview = null; showThin = false
         Printability.baseCutMm = baseCut
@@ -189,23 +204,50 @@ fun ResultScreen() {
     }
 
     Column(Modifier.fillMaxSize()) {
-        TopBar(project.name, onBack = { AppState.back() }) {
+        val editor = clean
+        if (editor != null) TopBar(tr("ניקוי הדגם"), onBack = { leaveClean() }) {
+            CircleIcon(Icons.AutoMirrored.Rounded.Undo, tr("בטל פעולה")) { if (editor.undo()) view?.refreshEdit() }
+            CircleIcon(Icons.Rounded.Check, tr("סיום"), tint = C.Green) {
+                if (!editor.changed) leaveClean()
+                else if (!busy) {
+                    busy = true
+                    scope.launch {
+                        val m = withContext(Dispatchers.Default) { editor.result() }
+                        busy = false
+                        if (m.triangleCount == 0) Actions.toast(ctx, tr("לא נשאר כלום מהדגם. בטל פעולה ונסה שוב."))
+                        else {
+                            leaveClean()
+                            AppState.mesh = m; cleaned = m; edited = true; tab = 1
+                            Actions.toast(ctx, tr("הניקוי הוחל. לחץ \"שמור שינויים בפרויקט\" כדי לשמור אותו."))
+                        }
+                    }
+                }
+            }
+        } else TopBar(project.name, onBack = { AppState.back() }) {
             CircleIcon(if (project.favorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, tr("אהבתי"),
                 tint = if (project.favorite) Color(0xFFFF5C8A) else C.Text) { AppState.toggleFavorite(project) }
             CircleIcon(Icons.Rounded.Edit, tr("שנה שם")) { renaming = true }
             CircleIcon(Icons.Rounded.Share, tr("שתף")) { export { Actions.share(ctx, it, format) } }
         }
-            Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(300.dp).glass(RoundedCornerShape(28.dp))) {
+            // The model gets the room the tab under it does not need; all of it when enlarged or cleaning.
+            val full = clean != null || big
+            val share by androidx.compose.animation.core.animateFloatAsState(if (tab == 0) 2f else 1.1f, label = "viewer")
+            Box(Modifier.fillMaxWidth().padding(horizontal = if (clean != null) 8.dp else 20.dp).weight(if (full) 1f else share)
+                .glass(RoundedCornerShape(28.dp))) {
                 // Screenshot tests (inspection mode) have no OpenGL: show the mesh's thumbnail instead.
                 if (androidx.compose.ui.platform.LocalInspectionMode.current) {
                     rememberThumb(project)?.let { androidx.compose.foundation.Image(it.asImageBitmap(), null,
                         modifier = Modifier.fillMaxSize().padding(40.dp)) }
                 } else AndroidView(
-                    factory = { MeshView(it).also { v -> view = v } },
+                    factory = { MeshView(it).also { v ->
+                        view = v
+                        v.onBrush = { x, y, down -> ring = if (down) androidx.compose.ui.geometry.Offset(x, y) else null }
+                    } },
                     modifier = Modifier.fillMaxSize(),
                     update = { v ->
                         v.setMesh(if (showThin) thinPreview ?: mesh else mesh)
                         v.setOptions(colors, wire, light, grid, rotate)
+                        if (clean != null) { v.tool = tool; v.brushPx = brush; v.through = through }
                     },
                     onRelease = { it.onPause() },
                 )
@@ -214,12 +256,58 @@ fun ResultScreen() {
                         modifier = Modifier.align(Alignment.BottomStart).padding(12.dp).clip(RoundedCornerShape(10.dp))
                             .background(C.Card.copy(alpha = 0.8f)).padding(horizontal = 10.dp, vertical = 4.dp))
                 }
+                ring?.let { o ->
+                    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                        drawCircle(Color.White, brush, o, style = androidx.compose.ui.graphics.drawscope.Stroke(4f))
+                        drawCircle(Color(0x33FFFFFF), brush, o)
+                    }
+                }
+                if (clean == null) Box(Modifier.align(Alignment.TopEnd).padding(12.dp).size(38.dp).clip(CircleShape)
+                    .background(Color(0xAA120B2A)).border(1.dp, Color(0x33FFFFFF), CircleShape).pressable { big = !big },
+                    contentAlignment = Alignment.Center) {
+                    Icon(if (big) Icons.Rounded.FullscreenExit else Icons.Rounded.Fullscreen, tr(if (big) "הקטן" else "הגדל"),
+                        tint = Color.White, modifier = Modifier.size(22.dp))
+                }
             }
+        if (editor != null) {
+            Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                val tools = listOf(MeshView.Tool.ERASE to tr("מחק"), MeshView.Tool.SMOOTH to tr("החלק"), MeshView.Tool.ROTATE to tr("סובב"))
+                Segmented(tools.map { it.first }, tool, { t -> tools.first { it.first == t }.second }, { tool = it })
+                Text(when (tool) {
+                    MeshView.Tool.ERASE -> tr("גע בחלק מיותר והוא נמחק. שתי אצבעות מזיזות ומקרבות את הדגם.")
+                    MeshView.Tool.SMOOTH -> tr("שפשף על בליטות וקוצים והם נבלעים במשטח, בלי להשאיר חור.")
+                    MeshView.Tool.ROTATE -> tr("גרור כדי לסובב את הדגם, ואז חזור למחיקה או להחלקה.")
+                }, color = C.Sub, fontSize = 13.sp)
+                if (tool != MeshView.Tool.ROTATE) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(tr("גודל המברשת"), color = C.Text, fontSize = 13.sp)
+                        Slider(brush, { b ->
+                            brush = b
+                            ring = view?.let { androidx.compose.ui.geometry.Offset(it.width / 2f, it.height / 2f) }
+                        }, Modifier.weight(1f), valueRange = 15f..220f, onValueChangeFinished = { ring = null }, colors = sliderColors())
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        for ((deep, label) in listOf(false to tr("רק מה שרואים"), true to tr("גם מה שמאחור"))) {
+                            val on = through == deep
+                            Text(label, color = if (on) Color.White else C.Sub, fontSize = 13.sp,
+                                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) C.Violet else C.veil(0x14))
+                                    .pressable { through = deep }.padding(horizontal = 14.dp, vertical = 8.dp))
+                        }
+                    }
+                }
+                SoftButton(tr("הסר חתיכות מנותקות"), Modifier.fillMaxWidth(), Icons.Rounded.AutoFixHigh) {
+                    val n = editor.removeLoose()
+                    view?.refreshEdit()
+                    Actions.toast(ctx, if (n > 0) tr("הוסרו {0} חתיכות מנותקות", n) else tr("אין חתיכות מנותקות"))
+                }
+            }
+            return@Column
+        }
         Spacer(Modifier.height(10.dp))
         val printOk = print?.report?.watertight
         val tabs = listOf(tr("תצוגה"), tr("עריכה"), tr("בדיקה") + when (printOk) { true -> " ✓"; false -> " !"; null -> "" }, tr("ייצוא"))
         Box(Modifier.padding(horizontal = 20.dp)) { Segmented(tabs.indices.toList(), tab, { tabs[it] }, { tab = it }) }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
+        if (!big) Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)) {
             when (tab) {
                 0 -> {
@@ -266,6 +354,13 @@ fun ResultScreen() {
                 1 -> {
                     if (project.group == "craft" && project.params.isNotEmpty())
                         SoftButton(tr("שנה מידות, טקסט ואפשרויות"), Modifier.fillMaxWidth(), Icons.Rounded.Tune) { AppState.editAgain(project) }
+            if (project.group != "craft") GradientButton(tr("ניקוי במגע: מחיקה והחלקה"), Modifier.fillMaxWidth(), Icons.Rounded.AutoFixHigh, enabled = !busy) {
+                showThin = false; rotate = false; wire = false
+                view?.let { v ->
+                    v.setMesh(mesh)
+                    v.startEdit()?.let { clean = it; tool = MeshView.Tool.ERASE }
+                }
+            }
             if (project.group != "craft") SoftButton(tr("צור מחדש מאותה תמונה"), Modifier.fillMaxWidth(), Icons.Rounded.Autorenew) {
                 AppState.recreate(project)
             }
@@ -285,18 +380,18 @@ fun ResultScreen() {
                     GradientButton(tr("החל"), Modifier.weight(1f), Icons.Rounded.Tune, enabled = !busy) {
                         busy = true
                         scope.launch {
-                            val base = AppState.originalMesh ?: mesh
+                            val base = cleaned ?: AppState.originalMesh ?: mesh
                             val m = withContext(Dispatchers.Default) { MeshTools.smooth(MeshTools.simplify(base, reduce), smoothIt.roundToInt()) }
                             AppState.mesh = m; edited = true; busy = false
                         }
                     }
                     SoftButton(tr("בטל"), Modifier.weight(0.6f), enabled = edited) {
-                        AppState.mesh = AppState.originalMesh; edited = false; smoothIt = 0f; reduce = 0f
+                        AppState.mesh = AppState.originalMesh; edited = false; smoothIt = 0f; reduce = 0f; cleaned = null
                     }
                 }
                 if (edited) SoftButton(tr("שמור שינויים בפרויקט"), Modifier.fillMaxWidth(), color = C.Green) {
                     scope.launch(Dispatchers.IO) { AppState.saveEdits(mesh) }
-                    edited = false; smoothIt = 0f; reduce = 0f
+                    edited = false; smoothIt = 0f; reduce = 0f; cleaned = null
                     Actions.toast(ctx, tr("נשמר"))
                 }
             }
