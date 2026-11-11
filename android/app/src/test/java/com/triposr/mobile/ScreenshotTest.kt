@@ -185,6 +185,7 @@ class ScreenshotTest {
 
     @Test fun tour() {
         com.triposr.mobile.ui.Tour.step = 2
+        AppState.navigateRoot(Screen.Home)  // the tour lights a part up only on its own screen
         shot("30_tour", Screen.Home) { Box(Modifier.fillMaxSize()) { HomeScreen(); com.triposr.mobile.ui.TourOverlay() } }
         com.triposr.mobile.ui.Tour.step = -1
     }
