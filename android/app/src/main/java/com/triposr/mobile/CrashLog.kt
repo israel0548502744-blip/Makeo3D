@@ -154,6 +154,13 @@ object CrashLog {
         if (prefs.getLong("seen_exit", 0) >= info.timestamp) return null
         prefs.edit().putLong("seen_exit", info.timestamp).apply()
 
+        // Android clears idle apps out of memory all the time. That is not a fault: only count a
+        // low-memory kill when the app was on screen or working (a service) at that moment.
+        if (info.reason == ApplicationExitInfo.REASON_LOW_MEMORY &&
+            info.importance > ActivityManager.RunningAppProcessInfo.IMPORTANCE_SERVICE) {
+            log("Previous run was cleared from memory while idle in the background (normal)")
+            return null
+        }
         val reason = when (info.reason) {
             ApplicationExitInfo.REASON_CRASH -> "Java crash"
             ApplicationExitInfo.REASON_CRASH_NATIVE -> "native crash (C/C++ library, e.g. ONNX Runtime / QNN)"
