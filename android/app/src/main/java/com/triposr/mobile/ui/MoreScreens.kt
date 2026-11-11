@@ -448,10 +448,11 @@ fun ResultScreen() {
         // The main action stays within reach on every tab: the print format used last.
         val quick = formats.firstOrNull { it.name == AppState.printFormat } ?: formats.firstOrNull { it == ExportFormat.THREE_MF } ?: formats.first()
         Row(Modifier.padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            GradientButton(tr("ייצוא להדפסה ({0})", quick.label), Modifier.weight(1f), Icons.Rounded.Download, enabled = !busy) {
+            GradientButton(tr("ייצוא להדפסה"), Modifier.weight(1f), Icons.Rounded.Download, enabled = !busy) {
                 export(quick) { Actions.share(ctx, it, quick) }
             }
-            if (tab != 3) SoftButton(tr("פורמטים"), Modifier.width(112.dp)) { tab = 3 }
+            // The second button names the format the first one makes, and opens the others.
+            if (tab != 3) SoftButton(quick.label, Modifier.width(112.dp), Icons.Rounded.Tune) { tab = 3 }
         }
     }
 
