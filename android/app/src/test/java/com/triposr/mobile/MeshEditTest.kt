@@ -45,6 +45,50 @@ class MeshEditTest {
         assertEquals(10, e.result().vertexCount)
     }
 
+    /** A ball of 2048 triangles: an eight-sided shape with every triangle split in four, four times. */
+    private fun ball(): Mesh {
+        var p = arrayListOf(0f, 1f, 0f, 0f, -1f, 0f, -1f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, -1f)
+        var t = intArrayOf(0, 2, 4, 0, 4, 3, 0, 3, 5, 0, 5, 2, 1, 4, 2, 1, 3, 4, 1, 5, 3, 1, 2, 5)
+        repeat(4) {
+            val mid = HashMap<Long, Int>()
+            fun m(a: Int, b: Int): Int = mid.getOrPut((minOf(a, b).toLong() shl 32) or maxOf(a, b).toLong()) {
+                val x = p[a * 3] + p[b * 3]; val y = p[a * 3 + 1] + p[b * 3 + 1]; val z = p[a * 3 + 2] + p[b * 3 + 2]
+                val l = kotlin.math.sqrt(x * x + y * y + z * z)
+                p.add(x / l); p.add(y / l); p.add(z / l)
+                p.size / 3 - 1
+            }
+            val out = ArrayList<Int>()
+            for (k in 0 until t.size / 3) {
+                val a = t[k * 3]; val b = t[k * 3 + 1]; val c = t[k * 3 + 2]
+                val ab = m(a, b); val bc = m(b, c); val ca = m(c, a)
+                out.addAll(listOf(a, ab, ca, ab, b, bc, ca, bc, c, ab, bc, ca))
+            }
+            t = out.toIntArray()
+        }
+        val pos = p.toFloatArray()
+        return Mesh(pos, MeshTools.normals(pos, t), FloatArray(pos.size) { 0.5f }, t)
+    }
+
+    @Test fun aBigBiteOutOfABallIsSkinnedOverSmoothly() {
+        val src = ball()
+        val e = MeshEditor(src)
+        // Bite off the cap of the ball that faces +z (everything above z = 0.8).
+        val cap = (0 until src.vertexCount).filter { src.positions[it * 3 + 2] > 0.8f }.toIntArray()
+        e.erase(cap); e.endStroke()
+        val m = e.result()
+        val edges = HashSet<Long>()
+        for (t in 0 until m.triangleCount) for (k in 0..2)
+            edges.add((m.indices[t * 3 + k].toLong() shl 32) or m.indices[t * 3 + (k + 1) % 3].toLong())
+        assertTrue("the ball is closed again",
+            edges.all { ((it and 0xFFFFFFFFL) shl 32) or (it ushr 32) in edges })
+        var top = -1f
+        for (v in 0 until m.vertexCount) top = maxOf(top, m.positions[v * 3 + 2])
+        assertTrue("the bite is a flat face, not a tent or a dent: top at ${top}", top < 0.82f && top > 0.6f)
+        assertTrue("the face is made of many small triangles", m.triangleCount > src.triangleCount - cap.size * 6 + 40)
+        assertTrue(e.undo())
+        assertEquals(src.triangleCount * 3, e.indices.size)
+    }
+
     @Test fun loosePiecesGoAndTheBiggestStays() {
         val e = MeshEditor(scene())
         assertEquals(1, e.removeLoose())
