@@ -186,6 +186,8 @@ class ScreenshotTest {
     @Test fun tour() {
         com.triposr.mobile.ui.Tour.step = 2
         AppState.navigateRoot(Screen.Home)  // the tour lights a part up only on its own screen
+        // One frame is captured, before a screen part can report where it is: say where the cards are.
+        com.triposr.mobile.ui.Tour.bounds["cards"] = androidx.compose.ui.geometry.Rect(60f, 507f, 1176f, 1404f)
         shot("30_tour", Screen.Home) { Box(Modifier.fillMaxSize()) { HomeScreen(); com.triposr.mobile.ui.TourOverlay() } }
         com.triposr.mobile.ui.Tour.step = -1
     }
