@@ -48,6 +48,9 @@ object Settings {
     fun setBackendChoice(ctx: Context, b: Backend?) = prefs(ctx).edit().putString("backend_choice", b?.name).apply()
     fun quality(ctx: Context) = Quality.entries[prefs(ctx).getInt("quality", Quality.MEDIUM.ordinal)]
     fun setQuality(ctx: Context, q: Quality) = prefs(ctx).edit().putInt("quality", q.ordinal).apply()
+    /** How many projects are kept before the oldest are cleared; 0 = keep everything. */
+    fun keepProjects(ctx: Context) = prefs(ctx).getInt("keep_projects", 20)
+    fun setKeepProjects(ctx: Context, n: Int) = prefs(ctx).edit().putInt("keep_projects", n).apply()
     fun removeBackground(ctx: Context) = prefs(ctx).getBoolean("remove_bg", true)
     fun setRemoveBackground(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("remove_bg", v).apply()
     fun smooth(ctx: Context) = prefs(ctx).getBoolean("smooth", true)

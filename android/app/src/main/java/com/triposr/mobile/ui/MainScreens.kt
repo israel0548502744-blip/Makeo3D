@@ -33,6 +33,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Star
@@ -218,6 +220,9 @@ fun HomeScreen() {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                     items(AppState.projects.take(10), key = { it.id }) { p -> ProjectThumb(p, Modifier.width(132.dp)) }
                 }
+                val keep = Settings.keepProjects(ctx)
+                Text(if (keep > 0) tr("נשמרים {0} הפרויקטים האחרונים. ישנים יותר נמחקים לבד, חוץ מאלה שסימנת בלב. אפשר לשנות בהגדרות.", keep)
+                    else tr("כל הפרויקטים נשמרים. אפשר לשנות בהגדרות."), color = C.Faint, fontSize = 12.sp, lineHeight = 17.sp)
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -343,11 +348,22 @@ fun ProjectThumb(p: Project, modifier: Modifier = Modifier) {
     Column(modifier.glass(RoundedCornerShape(22.dp)).pressable { AppState.open(p) }.padding(8.dp)) {
         Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(C.Sink)) {
             if (bmp != null) Image(bmp.asImageBitmap(), null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            HeartButton(p, Modifier.align(Alignment.TopStart).padding(6.dp))
         }
         Spacer(Modifier.height(8.dp))
         Text(p.name, color = C.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
             modifier = Modifier.padding(horizontal = 4.dp))
         Text(p.date, color = C.Faint, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
+    }
+}
+
+/** Like / unlike a project. Liked projects are kept for good. */
+@Composable
+fun HeartButton(p: Project, modifier: Modifier = Modifier) {
+    Box(modifier.size(34.dp).clip(CircleShape).background(Color(0xAA120B2A)).border(1.dp, Color(0x33FFFFFF), CircleShape)
+        .pressable { AppState.toggleFavorite(p) }, contentAlignment = Alignment.Center) {
+        Icon(if (p.favorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, tr(if (p.favorite) "הסר מאהבתי" else "אהבתי"),
+            tint = if (p.favorite) Color(0xFFFF5C8A) else Color.White, modifier = Modifier.size(18.dp))
     }
 }
 

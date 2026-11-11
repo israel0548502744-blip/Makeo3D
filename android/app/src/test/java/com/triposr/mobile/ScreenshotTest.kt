@@ -183,6 +183,12 @@ class ScreenshotTest {
 
     @Test fun models() = shot("14_models", Screen.Models) { com.triposr.mobile.ui.ModelsScreen() }
 
+    @Test fun tour() {
+        com.triposr.mobile.ui.Tour.step = 2
+        shot("30_tour", Screen.Home) { Box(Modifier.fillMaxSize()) { HomeScreen(); com.triposr.mobile.ui.TourOverlay() } }
+        com.triposr.mobile.ui.Tour.step = -1
+    }
+
     @Test fun createMenu() {
         AppState.createMenu = true
         shot("15_create_menu", Screen.Home) { Box(Modifier.fillMaxSize()) { HomeScreen(); com.triposr.mobile.ui.CreateMenu() } }

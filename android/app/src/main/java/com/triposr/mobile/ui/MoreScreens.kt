@@ -45,6 +45,8 @@ import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.CenterFocusStrong
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Grid4x4
@@ -188,6 +190,8 @@ fun ResultScreen() {
 
     Column(Modifier.fillMaxSize()) {
         TopBar(project.name, onBack = { AppState.back() }) {
+            CircleIcon(if (project.favorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, tr("אהבתי"),
+                tint = if (project.favorite) Color(0xFFFF5C8A) else C.Text) { AppState.toggleFavorite(project) }
             CircleIcon(Icons.Rounded.Edit, tr("שנה שם")) { renaming = true }
             CircleIcon(Icons.Rounded.Share, tr("שתף")) { export { Actions.share(ctx, it, format) } }
         }
@@ -459,15 +463,15 @@ fun ProjectsScreen() {
     var toDelete by remember { mutableStateOf<Project?>(null) }
     var tab by remember { mutableStateOf("") }
     val list = AppState.projects.filter {
-        (tab.isEmpty() || it.group == tab) && (query.isBlank() || it.name.contains(query, ignoreCase = true))
+        (tab.isEmpty() || (if (tab == "fav") it.favorite else it.group == tab)) && (query.isBlank() || it.name.contains(query, ignoreCase = true))
     }
     Column(Modifier.fillMaxSize()) {
         TopBar(tr("הפרויקטים שלי"))
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            for ((key, label) in listOf("" to tr("הכל"), "sr" to tr("מהיר (TripoSR)"), "sg" to tr("מדויק (TripoSG)"), "craft" to tr("יצירות להדפסה"))) {
-                val n = if (key.isEmpty()) AppState.projects.size else AppState.projects.count { it.group == key }
-                if (key.isNotEmpty() && n == 0) continue
+            for ((key, label) in listOf("" to tr("הכל"), "fav" to tr("אהבתי"), "sr" to tr("מהיר (TripoSR)"), "sg" to tr("מדויק (TripoSG)"), "craft" to tr("יצירות להדפסה"))) {
+                val n = if (key.isEmpty()) AppState.projects.size else AppState.projects.count { if (key == "fav") it.favorite else it.group == key }
+                if (key.isNotEmpty() && key != "fav" && n == 0) continue
                 val on = tab == key
                 Text("${label} · ${n}", color = if (on) Color.White else C.Sub, fontSize = 13.sp,
                     fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
@@ -563,6 +567,23 @@ fun SettingsScreen() {
                                 .padding(horizontal = 14.dp, vertical = 8.dp))
                     }
                 }
+            }
+            Section(Modifier.enter(0), title = tr("שמירת פרויקטים")) {
+                var keep by remember { mutableStateOf(Settings.keepProjects(ctx)) }
+                Text(tr("כמה פרויקטים לשמור. כשיש יותר, הישנים נמחקים לבד. פרויקט שסימנת בלב לא נמחק אף פעם."), color = C.Sub, fontSize = 13.sp)
+                Spacer(Modifier.height(10.dp))
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for (n in listOf(10, 20, 50, 100, 0)) {
+                        val on = keep == n
+                        Text(if (n == 0) tr("לא למחוק") else n.toString(), color = if (on) Color.White else C.Sub, fontSize = 13.sp,
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) C.Violet else C.veil(0x14))
+                                .pressable { keep = n; Settings.setKeepProjects(ctx, n) }
+                                .padding(horizontal = 14.dp, vertical = 8.dp))
+                    }
+                }
+            }
+            Section(Modifier.enter(0), title = tr("הדרכה")) {
+                NavRow(Icons.Rounded.Lightbulb, tr("הצג את הסיור שוב"), tr("הסבר קצר על כל אזור באפליקציה")) { Tour.start() }
             }
             Section(Modifier.enter(0), title = "שפה · Language") {
                 var lang by remember { mutableStateOf(com.triposr.mobile.I18n.choice(ctx)) }

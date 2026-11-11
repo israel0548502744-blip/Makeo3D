@@ -93,6 +93,8 @@ data class Project(
     val kind: String = "",
     /** A print product's text and options (JSON), so it can be opened again and changed. */
     val params: String = "",
+    /** Liked by the user: listed under its own tab and never cleared away. */
+    val favorite: Boolean = false,
 ) {
     /** Gallery tab: "sr", "sg" or "craft". */
     val group: String get() = when {
@@ -505,7 +507,7 @@ object AppState {
             Bitmap.createScaledBitmap(thumb, 256, 256, true).compress(Bitmap.CompressFormat.PNG, 100, it)
         }
         writeMeta(p)
-        scope.launch(Dispatchers.Main) { projects.add(0, p) }
+        scope.launch(Dispatchers.Main) { projects.add(0, p); prune(p) }
         CreateWidget.refresh(app)
         return p
     }
@@ -515,7 +517,7 @@ object AppState {
             put("name", p.name); put("created", p.created); put("backend", p.backend)
             put("quality", p.quality); put("seconds", p.seconds)
             put("vertices", p.vertices); put("triangles", p.triangles)
-            put("timings", JSONObject(p.timings)); put("kind", p.kind); put("params", p.params)
+            put("timings", JSONObject(p.timings)); put("kind", p.kind); put("params", p.params); put("favorite", p.favorite)
         }.toString())
     }
 
@@ -528,7 +530,7 @@ object AppState {
                 val timings = t?.keys()?.asSequence()?.associateWith { t.getDouble(it) } ?: emptyMap()
                 Project(dir.name, j.getString("name"), j.getLong("created"), j.optString("backend"),
                     j.optString("quality"), j.optDouble("seconds"), j.optInt("vertices"), j.optInt("triangles"), timings,
-                    j.optString("kind"), j.optString("params"))
+                    j.optString("kind"), j.optString("params"), j.optBoolean("favorite"))
             }.getOrNull()
         }?.sortedByDescending { it.created } ?: emptyList()
         synchronized(projects) { projects.clear(); projects.addAll(list) }
@@ -561,6 +563,27 @@ object AppState {
         projects.remove(p)
         if (project?.id == p.id) { project = null; mesh = null }
         CreateWidget.refresh(app)
+    }
+
+    /**
+     * Clears the oldest projects beyond the number kept (Settings). Liked projects, the one just
+     * made and the one open never go.
+     */
+    private fun prune(fresh: Project) {
+        val keep = Settings.keepProjects(app)
+        if (keep <= 0) return
+        val old = projects.filter { !it.favorite && it.id != fresh.id && it.id != project?.id }.drop(keep - 1)
+        if (old.isEmpty()) return
+        CrashLog.log("Cleared ${old.size} old project(s): the newest ${keep} are kept")
+        old.forEach { delete(it) }
+    }
+
+    fun toggleFavorite(p: Project) {
+        val n = p.copy(favorite = !p.favorite)
+        writeMeta(n)
+        val i = projects.indexOfFirst { it.id == p.id }
+        if (i >= 0) projects[i] = n
+        if (project?.id == p.id) project = n
     }
 
     fun rename(p: Project, name: String) {

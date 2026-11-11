@@ -164,6 +164,8 @@ class MainActivity : ComponentActivity() {
                 if (screen.isRoot) BottomNav(screen)
             }
             CreateMenu()
+            LaunchedEffect(termsOk) { if (termsOk) com.triposr.mobile.ui.Tour.startOnce(ctx) }
+            if (termsOk && retired == null) com.triposr.mobile.ui.TourOverlay()
             if (!termsOk && screen != Screen.Legal) TermsDialog { Settings.acceptTerms(ctx); termsOk = true }
             retired?.let { com.triposr.mobile.ui.RetiredScreen(it) }
         }
