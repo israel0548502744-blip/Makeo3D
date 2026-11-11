@@ -133,6 +133,29 @@ class MeshView(context: Context) : GLSurfaceView(context) {
         return !multi && !beside
     }
 
+    fun setMesh(mesh: Mesh?) {
+        if (mesh === lastMesh) return
+        lastMesh = mesh
+        queueEvent { renderer.upload(mesh) }
+        requestRender()
+    }
+
+    fun setOptions(colors: Boolean, wireframe: Boolean, lighting: Boolean, grid: Boolean, autoRotate: Boolean) {
+        renderer.colors = colors
+        renderer.wireframe = wireframe
+        renderer.lighting = lighting
+        renderer.grid = grid
+        renderer.autoRotate = autoRotate
+        renderMode = if (autoRotate) RENDERMODE_CONTINUOUSLY else RENDERMODE_WHEN_DIRTY
+        requestRender()
+    }
+
+    fun resetView() {
+        renderer.yaw = 30f; renderer.pitch = 15f; renderer.distance = 2.4f
+        renderer.panX = 0f; renderer.panY = 0f
+        requestRender()
+    }
+
     override fun onTouchEvent(e: MotionEvent): Boolean {
         scaleDetector.onTouchEvent(e)
         val ed = editor

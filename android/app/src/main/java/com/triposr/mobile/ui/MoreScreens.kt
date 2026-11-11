@@ -51,7 +51,6 @@ import androidx.compose.material.icons.rounded.Waves
 import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.RemoveCircle
 import androidx.compose.material.icons.rounded.HorizontalRule
-import androidx.compose.material.icons.rounded.ThreeSixty
 import androidx.compose.material.icons.automirrored.rounded.Redo
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Fullscreen
@@ -294,7 +293,7 @@ fun ResultScreen() {
                     ViewToggle(Icons.Rounded.AddCircle, tr("הבלט"), tool == MeshView.Tool.RAISE) { tool = MeshView.Tool.RAISE }
                     ViewToggle(Icons.Rounded.RemoveCircle, tr("השקע"), tool == MeshView.Tool.SINK) { tool = MeshView.Tool.SINK }
                     ViewToggle(Icons.Rounded.HorizontalRule, tr("יישר"), tool == MeshView.Tool.FLATTEN) { tool = MeshView.Tool.FLATTEN }
-                    ViewToggle(Icons.Rounded.ThreeSixty, tr("סובב"), tool == MeshView.Tool.ROTATE) { tool = MeshView.Tool.ROTATE }
+                    ViewToggle(Icons.Rounded.Autorenew, tr("סובב"), tool == MeshView.Tool.ROTATE) { tool = MeshView.Tool.ROTATE }
                 }
                 Text(when (tool) {
                     MeshView.Tool.ERASE -> tr("גע בחלק מיותר והוא נמחק, והחתך נסגר לבד.")
