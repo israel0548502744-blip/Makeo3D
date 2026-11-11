@@ -408,7 +408,7 @@ object Crafts {
      * and the right way round) on a handle. Printed standing on the handle.
      */
     fun seal(src: Bitmap?, text: String, o: Creations.Options): Pair<Mesh, Bitmap> {
-        val cell = 0.2f
+        val cell = 0.15f
         val handleMm = 32f; val headMm = 6f
         val r = o.sizeMm / 2 / cell; val rh = 7f / cell
         val n = (2 * r).toInt() + 3; val c = n / 2f
@@ -417,6 +417,11 @@ object Crafts {
             val d = hypot(i % n - c, i / n - c)
             if (d <= r) { s.top[i] = handleMm + headMm; s.bot[i] = if (d <= rh) 0f else max(0f, handleMm - (r - d) * cell) }
         }
+        if (text.isBlank() && src != null && depthReady() && isPhoto(src)) {
+            sealPortrait(s, src, n / 2, r - 1.5f / cell)
+            s.dark.fill(false)
+            return s.done()
+        }
         var m = (if (text.isNotBlank()) Creations.textMask(text.trim(), 120)
             else pic(src ?: throw IllegalStateException(tr("צריך טקסט או תמונה")), 160, false, whole = true).mask).cropped().mirrored()
         val side = (r - 2.5f / cell) * 1.41f
@@ -424,6 +429,45 @@ object Crafts {
         s.raiseCentered(m, n / 2, n / 2, -1.3f)
         s.dark.fill(false)  // the design shows by its depth; the color would run down the handle
         return s.done()
+    }
+
+    /** A photo has many in-between tones; a drawing or logo is nearly all dark and light. */
+    private fun isPhoto(src: Bitmap): Boolean {
+        val (px, _, _) = scaled(src, 64)
+        val lum = Heightfield.luminance(px)
+        return lum.count { it > 0.25f && it < 0.75f } > lum.size / 5
+    }
+
+    /**
+     * A photo on the seal: the subject (background removed) sunk by its depth, like a coin
+     * portrait, filling a circle of radius [rd] around the middle. Mirrored like every seal design.
+     */
+    private fun sealPortrait(s: Sheet, src: Bitmap, mid: Int, rd: Float) {
+        val p = pic(src, 220, true, depth = true)
+        val depth = p.depth ?: throw IllegalStateException(tr(NO_SHAPE))
+        // The top square of a tall subject (head and shoulders), the middle of a wide one.
+        val sq = min(p.w, p.h); val x0 = (p.w - sq) / 2f
+        val size = (2 * rd).toInt()
+        val sink = FloatArray(size * size)
+        for (y in 0 until size) for (x in 0 until size) {
+            if (hypot(x - size / 2f, y - size / 2f) > rd) continue
+            val px = (x0 + (size - 1 - x) * sq / size.toFloat()).toInt().coerceIn(0, p.w - 1)
+            val py = (y * sq / size.toFloat()).toInt().coerceIn(0, p.h - 1)
+            if (p.mask[px, py]) sink[y * size + x] = 0.35f + 1.25f * depth[py * p.w + px]
+        }
+        // Soften the steps between samples so the wax leaves the seal cleanly.
+        repeat(2) {
+            val old = sink.copyOf()
+            for (y in 1 until size - 1) for (x in 1 until size - 1) {
+                var sum = 0f
+                for (dy in -1..1) for (dx in -1..1) sum += old[(y + dy) * size + x + dx]
+                sink[y * size + x] = sum / 9f
+            }
+        }
+        for (y in 0 until size) for (x in 0 until size) {
+            val i = (mid - size / 2 + y) * s.w + mid - size / 2 + x
+            if (hypot(x - size / 2f, y - size / 2f) <= rd) s.top[i] -= sink[y * size + x]
+        }
     }
 
     /** Square box with a lid that drops onto a ledge inside the rim; the text is raised on the lid. */

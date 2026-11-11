@@ -94,7 +94,7 @@ object Catalog {
     fun entries(c: Category): List<Entry> = when (c) {
         Category.PHOTO -> listOf(Kind.LITHOPHANE, Kind.RELIEF, Kind.MAGNET, Kind.PENDANT, Kind.MEDAL, Kind.PUZZLE, Kind.PLANTER,
             Kind.NIGHT, Kind.STENCIL, Kind.COOKIE).map { of(it) }
-        Category.TEXT -> listOf(Kind.NAME, Kind.SIGN, Kind.BOOKMARK, Kind.PETTAG, Kind.TOPPER, Kind.STAMP, Kind.SEAL, Kind.QR).map { of(it) }
+        Category.TEXT -> listOf(Kind.NAME, Kind.QR, Kind.SIGN, Kind.BOOKMARK, Kind.PETTAG, Kind.TOPPER, Kind.STAMP, Kind.SEAL).map { of(it) }
         Category.MOLD -> listOf(of(Kind.MOLD), siliconeMaster, twoHalves)
         Category.HOME -> listOf(Kind.STAND, Kind.FRAME, Kind.BOX).map { of(it) }
     }
@@ -196,20 +196,15 @@ fun Advanced(title: String = tr("מתקדם"), content: @Composable () -> Unit) 
     if (open) content()
 }
 
-/** Make: everything that can be created, in groups, with a search across all of it. */
+/** Make: everything that can be created, in groups. (The search field waits until there is more to search.) */
 @Composable
 fun MakeScreen() {
-    var query by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize()) {
         TopBar(tr("יצירה"))
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SearchField(query, tr("חיפוש יצירה… למשל \"מגנט\"")) { query = it }
-            if (query.isNotBlank()) SearchResults(query)
-            else {
-                PhotoHero()
-                for (c in Category.entries) CategoryRow(c)
-            }
+            PhotoHero()
+            for (c in Category.entries) CategoryRow(c)
             Spacer(Modifier.height(12.dp))
         }
     }
@@ -220,14 +215,11 @@ fun MakeScreen() {
 fun CategoryScreen() {
     val c = runCatching { Category.valueOf(AppState.category) }.getOrDefault(Category.PHOTO)
     val entries = Catalog.entries(c)
-    var query by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize()) {
         TopBar(c.label, onBack = { AppState.back() })
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (entries.size > 5) SearchField(query, tr("חיפוש בקטגוריה…")) { query = it }
-            if (query.isNotBlank()) SearchResults(query, entries)
-            else entries.forEachIndexed { i, e -> EntryRow(e, i) }
+            entries.forEachIndexed { i, e -> EntryRow(e, i) }
             Spacer(Modifier.height(12.dp))
         }
     }

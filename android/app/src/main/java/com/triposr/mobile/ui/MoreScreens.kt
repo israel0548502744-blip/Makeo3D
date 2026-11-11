@@ -213,7 +213,7 @@ fun ResultScreen() {
             }
         Spacer(Modifier.height(10.dp))
         val printOk = print?.report?.watertight
-        val tabs = listOf(tr("תצוגה"), tr("עריכה"), tr("בדיקת הדפסה") + when (printOk) { true -> " ✓"; false -> " !"; null -> "" }, tr("ייצוא"))
+        val tabs = listOf(tr("תצוגה"), tr("עריכה"), tr("בדיקה") + when (printOk) { true -> " ✓"; false -> " !"; null -> "" }, tr("ייצוא"))
         Box(Modifier.padding(horizontal = 20.dp)) { Segmented(tabs.indices.toList(), tab, { tabs[it] }, { tab = it }) }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)) {

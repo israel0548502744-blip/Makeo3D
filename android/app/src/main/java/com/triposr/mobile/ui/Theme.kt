@@ -363,7 +363,8 @@ fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, onSelect:
                 contentAlignment = Alignment.Center,
             ) {
                 Text(label(o), color = textColor, fontSize = if (options.size > 5) 11.sp else 13.sp,
-                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
+                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium, maxLines = 1, softWrap = false,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 4.dp))
             }
         }
     }
