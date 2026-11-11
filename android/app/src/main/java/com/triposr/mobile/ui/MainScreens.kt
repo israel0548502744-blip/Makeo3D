@@ -184,14 +184,9 @@ fun HomeScreen() {
     LaunchedEffect(status, npuStatus) {
         if (status is ModelStore.Status.Ready && npuStatus !is ModelStore.Status.Downloading && !Capabilities.probed(ctx)) startProbe(ctx)
     }
-    var query by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Spacer(Modifier.height(14.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Logo(40)
-            GradientText("Makeo 3D", 24.sp)
-        }
+        Spacer(Modifier.height(18.dp))
         Text(tr("מה ניצור היום?"), color = C.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
 
         CrashCard()
@@ -209,26 +204,12 @@ fun HomeScreen() {
             PreviewPanel(AppState.framed, 1f, "100%")
         }
 
-        SearchField(query, tr("חיפוש יצירה… למשל \"מגנט\"")) { query = it }
-        if (query.isNotBlank()) SearchResults(query)
-        else {
-            PhotoHero()
-            for (c in Category.entries) CategoryRow(c)
-
-            val used = remember(AppState.projects.size) { AppState.mostUsed(3).mapNotNull { Catalog.find(it) } }
-            if (used.isNotEmpty()) {
-                Text(tr("השתמשת לאחרונה"), color = C.Sub, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (e in used) Column(Modifier.weight(1f).glass(RoundedCornerShape(18.dp)).pressable(onClick = e.open).padding(vertical = 12.dp, horizontal = 6.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally) {
-                        IconTile(e.icon, 36.dp)
-                        Spacer(Modifier.height(6.dp))
-                        Text(e.label(), color = C.Text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    repeat(3 - used.size) { Spacer(Modifier.weight(1f)) }
-                }
-            }
-
+        PhotoHero()
+        // Search and the full list live under "Create"; home stays four big doors.
+        for (pair in Category.entries.chunked(2)) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            for (c in pair) CategoryCard(c, Modifier.weight(1f))
+        }
+        run {
             if (AppState.projects.isNotEmpty()) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Text(tr("המשך מאיפה שעצרת"), color = C.Sub, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
@@ -240,6 +221,18 @@ fun HomeScreen() {
             }
         }
         Spacer(Modifier.height(16.dp))
+    }
+}
+
+/** One of the four doors on the home screen: icon, name and how many things are inside. */
+@Composable
+private fun CategoryCard(c: Category, modifier: Modifier) {
+    Column(modifier.glass(RoundedCornerShape(24.dp)).pressable { AppState.openCategory(c.name) }.padding(16.dp)) {
+        IconTile(c.icon, 46.dp, if (c.warm) C.Primary else C.Accent)
+        Spacer(Modifier.height(14.dp))
+        Text(c.label, color = C.Text, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.height(4.dp))
+        Text(tr("{0} יצירות", Catalog.entries(c).size), color = C.Sub, fontSize = 13.sp)
     }
 }
 
