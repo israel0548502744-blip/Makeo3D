@@ -141,19 +141,19 @@ fun BottomNav(current: Screen) {
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            NavItem(Icons.Rounded.Home, tr("בית"), current == Screen.Home) { AppState.navigateRoot(Screen.Home) }
-            NavItem(Icons.Rounded.Add, tr("יצירה"), current == Screen.Make) { AppState.navigateRoot(Screen.Make) }
-            NavItem(Icons.Rounded.GridView, tr("הפרויקטים"), current == Screen.Projects) { AppState.navigateRoot(Screen.Projects) }
+            NavItem(Icons.Rounded.Home, tr("בית"), current == Screen.Home, "nav_home") { AppState.navigateRoot(Screen.Home) }
+            NavItem(Icons.Rounded.Add, tr("יצירה"), current == Screen.Make, "nav_make") { AppState.navigateRoot(Screen.Make) }
+            NavItem(Icons.Rounded.GridView, tr("הפרויקטים"), current == Screen.Projects, "nav_projects") { AppState.navigateRoot(Screen.Projects) }
             val errors = remember(com.triposr.mobile.Health.tick.intValue) { com.triposr.mobile.Health.errorCount() }
-            NavItem(Icons.Rounded.MoreHoriz, tr("עוד"), current == Screen.More, dot = errors > 0) { AppState.navigateRoot(Screen.More) }
+            NavItem(Icons.Rounded.MoreHoriz, tr("עוד"), current == Screen.More, "nav_more", dot = errors > 0) { AppState.navigateRoot(Screen.More) }
         }
     }
 }
 
 @Composable
-private fun NavItem(icon: ImageVector, label: String, selected: Boolean, dot: Boolean = false, onClick: () -> Unit) {
+private fun NavItem(icon: ImageVector, label: String, selected: Boolean, mark: String, dot: Boolean = false, onClick: () -> Unit) {
     Column(
-        Modifier.clip(RoundedCornerShape(16.dp)).pressable(onClick = onClick).padding(horizontal = 8.dp, vertical = 6.dp),
+        Modifier.tourTarget(mark).clip(RoundedCornerShape(16.dp)).pressable(onClick = onClick).padding(horizontal = 8.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box {
@@ -206,10 +206,12 @@ fun HomeScreen() {
             PreviewPanel(AppState.framed, 1f, "100%")
         }
 
-        PhotoHero()
+        PhotoHero(Modifier.tourTarget("hero"))
         // Search and the full list live under "Create"; home stays four big doors.
-        for (pair in Category.entries.chunked(2)) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            for (c in pair) CategoryCard(c, Modifier.weight(1f))
+        Column(Modifier.tourTarget("cards"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            for (pair in Category.entries.chunked(2)) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                for (c in pair) CategoryCard(c, Modifier.weight(1f))
+            }
         }
         run {
             if (AppState.projects.isNotEmpty()) {
@@ -217,7 +219,7 @@ fun HomeScreen() {
                     Text(tr("המשך מאיפה שעצרת"), color = C.Sub, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     Text(tr("הכל"), color = C.Violet, fontSize = 14.sp, modifier = Modifier.pressable { AppState.navigateRoot(Screen.Projects) })
                 }
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth().tourTarget("recent")) {
                     items(AppState.projects.take(10), key = { it.id }) { p -> ProjectThumb(p, Modifier.width(132.dp)) }
                 }
                 val keep = Settings.keepProjects(ctx)

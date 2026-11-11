@@ -76,7 +76,8 @@ class MeshView(context: Context) : GLSurfaceView(context) {
     fun refreshEdit() {
         val e = editor ?: return
         val n = e.normals()
-        queueEvent { renderer.update(e.positions, n, e.indices) }
+        val p = e.positions; val c = e.colors; val i = e.indices
+        queueEvent { renderer.update(p, n, i, c) }
         requestRender()
     }
 
@@ -111,7 +112,7 @@ class MeshView(context: Context) : GLSurfaceView(context) {
                 if (!multi && !stroked && ev.actionMasked == MotionEvent.ACTION_UP) dab(e, ev.x, ev.y)
                 e.endStroke()
                 onBrush?.invoke(0f, 0f, false)
-                if (stroked) { if (tool == Tool.SMOOTH) refreshEdit(); onStroke?.invoke() }
+                if (stroked) { refreshEdit(); onStroke?.invoke() }
             }
         }
         return !multi
@@ -157,8 +158,9 @@ class MeshView(context: Context) : GLSurfaceView(context) {
                     renderer.pitch = (renderer.pitch + (y - lastY) * 0.4f).coerceIn(-89f, 89f)
                 } else {
                     val k = renderer.distance / height
-                    renderer.panX += (x - lastX) * k
-                    renderer.panY -= (y - lastY) * k
+                    // The camera moves against the fingers, so the model follows them.
+                    renderer.panX -= (x - lastX) * k
+                    renderer.panY += (y - lastY) * k
                 }
                 lastX = x; lastY = y
                 requestRender()
@@ -207,9 +209,9 @@ internal class MeshRenderer : GLSurfaceView.Renderer {
     }
 
     /** Replaces parts of what is drawn (GL thread). Null = leave as is. */
-    fun update(positions: FloatArray?, normals: FloatArray?, indices: IntArray?) {
+    fun update(positions: FloatArray?, normals: FloatArray?, indices: IntArray?, colors: FloatArray? = null) {
         if (program == 0) return
-        for ((slot, data) in listOf(0 to positions, 1 to normals)) {
+        for ((slot, data) in listOf(0 to positions, 1 to normals, 2 to colors)) {
             if (data == null) continue
             val b = room(data.size * 4); b.asFloatBuffer().put(data)
             GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, vbo[slot])

@@ -2,7 +2,23 @@ package com.triposr.mobile.ui
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.composed
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -40,18 +56,22 @@ object Tour {
     /** The stop being shown; -1 when the tour is off. */
     var step by mutableIntStateOf(-1)
 
-    class Stop(val screen: Screen, val title: String, val text: String)
+    /** [target]: the part of the screen to light up (see [tourTarget]); null = nothing in particular. */
+    class Stop(val screen: Screen, val target: String?, val title: String, val text: String)
+
+    /** Where each markable part is on screen right now. */
+    val bounds = mutableStateMapOf<String, Rect>()
 
     fun stops() = listOf(
-        Stop(Screen.Home, tr("ברוך הבא ל־Makeo 3D"), tr("סיור קצר של דקה יראה לך מה יש בכל מקום. אפשר לדלג בכל רגע.")),
-        Stop(Screen.Home, tr("תמונה לתלת־ממד"), tr("הכפתור הצבעוני הגדול למעלה: בוחרים תמונה אחת, והטלפון בונה ממנה דגם תלת־ממד מלא שאפשר לסובב ולהדפיס.")),
-        Stop(Screen.Home, tr("ארבע המשבצות"), tr("כל משבצת היא קבוצה של יצירות להדפסה: מתמונה, משם וטקסט, תבניות יציקה, ודברים לבית ולשולחן. לחיצה פותחת את הרשימה שלה.")),
-        Stop(Screen.Home, tr("המשך מאיפה שעצרת"), tr("בתחתית מסך הבית מחכים הדברים האחרונים שיצרת. לחיצה על אחד פותחת אותו שוב.")),
-        Stop(Screen.Make, tr("יצירה"), tr("הכפתור השני בסרגל למטה. כאן כל מה שאפשר ליצור, באותן ארבע קבוצות.")),
-        Stop(Screen.Projects, tr("הפרויקטים"), tr("כל מה שיצרת נשמר כאן. הלב שומר פרויקט שאהבת כך שלא יימחק אף פעם, והפח מוחק. למעלה אפשר לסנן, למשל רק את מה שאהבת.")),
-        Stop(Screen.Projects, tr("מסך הדגם"), tr("כשפותחים פרויקט רואים את הדגם ומתחתיו ארבע לשוניות: תצוגה, עריכה, בדיקה שהדגם תקין להדפסה, וייצוא. הכפתור הגדול למטה מייצא קובץ למדפסת.")),
-        Stop(Screen.More, tr("עוד"), tr("כאן נמצאים המודלים להורדה, ההגדרות (מראה כהה או בהיר, שפה, כמה פרויקטים לשמור) ודיווח על בעיה.")),
-        Stop(Screen.More, tr("זהו, אפשר להתחיל!"), tr("רוצה לראות את הסיור שוב? עוד ← הגדרות ← הדרכה.")),
+        Stop(Screen.Home, null, tr("ברוך הבא ל־Makeo 3D"), tr("סיור קצר של דקה יראה לך מה יש בכל מקום. אפשר לדלג בכל רגע.")),
+        Stop(Screen.Home, "hero", tr("תמונה לתלת־ממד"), tr("הכפתור הצבעוני הגדול למעלה: בוחרים תמונה אחת, והטלפון בונה ממנה דגם תלת־ממד מלא שאפשר לסובב ולהדפיס.")),
+        Stop(Screen.Home, "cards", tr("ארבע המשבצות"), tr("כל משבצת היא קבוצה של יצירות להדפסה: מתמונה, משם וטקסט, תבניות יציקה, ודברים לבית ולשולחן. לחיצה פותחת את הרשימה שלה.")),
+        Stop(Screen.Home, "recent", tr("המשך מאיפה שעצרת"), tr("בתחתית מסך הבית מחכים הדברים האחרונים שיצרת. לחיצה על אחד פותחת אותו שוב.")),
+        Stop(Screen.Make, "nav_make", tr("יצירה"), tr("הכפתור השני בסרגל למטה. כאן כל מה שאפשר ליצור, באותן ארבע קבוצות.")),
+        Stop(Screen.Projects, "project", tr("הפרויקטים"), tr("כל מה שיצרת נשמר כאן. הלב שומר פרויקט שאהבת כך שלא יימחק אף פעם, והפח מוחק. למעלה אפשר לסנן, למשל רק את מה שאהבת.")),
+        Stop(Screen.Projects, "project", tr("מסך הדגם"), tr("כשפותחים פרויקט רואים את הדגם ומתחתיו ארבע לשוניות: תצוגה, עריכה, בדיקה שהדגם תקין להדפסה, וייצוא. הכפתור הגדול למטה מייצא קובץ למדפסת.")),
+        Stop(Screen.More, "nav_more", tr("עוד"), tr("כאן נמצאים המודלים להורדה, ההגדרות (מראה כהה או בהיר, שפה, כמה פרויקטים לשמור) ודיווח על בעיה.")),
+        Stop(Screen.More, null, tr("זהו, אפשר להתחיל!"), tr("רוצה לראות את הסיור שוב? עוד ← הגדרות ← הדרכה.")),
     )
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("settings", Context.MODE_PRIVATE)
@@ -68,6 +88,15 @@ object Tour {
     }
 }
 
+/** Marks a part of the screen the tour can point at. */
+fun Modifier.tourTarget(id: String): Modifier = composed {
+    DisposableEffect(id) { onDispose { Tour.bounds.remove(id) } }
+    onGloballyPositioned { c ->
+        val r = c.boundsInRoot()
+        if (Tour.bounds[id] != r) Tour.bounds[id] = r
+    }
+}
+
 @Composable
 fun TourOverlay() {
     val ctx = LocalContext.current
@@ -77,9 +106,26 @@ fun TourOverlay() {
     val stop = stops[i]
     LaunchedEffect(i) { if (AppState.screen != stop.screen) AppState.navigateRoot(stop.screen) }
     BackHandler { Tour.finish(ctx) }
-    // The screen behind stays visible but does not take taps while the tour is on.
-    Box(Modifier.fillMaxSize().background(Color(0x55000000)).pointerInput(Unit) { detectTapGestures { } }) {
-        Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 104.dp)
+    // Only point at something once its screen is the one on show.
+    val spot = if (AppState.screen == stop.screen) stop.target?.let { Tour.bounds[it] } else null
+    // The screen behind is dimmed and does not take taps; the part being explained stays lit, with a bright ring.
+    BoxWithConstraints(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { } }) {
+        Canvas(Modifier.fillMaxSize().graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) {
+            drawRect(Color(0x99000000))
+            if (spot != null) {
+                val pad = 8.dp.toPx()
+                val at = Offset(spot.left - pad, spot.top - pad)
+                val size = Size(spot.width + 2 * pad, spot.height + 2 * pad)
+                val round = CornerRadius(minOf(26.dp.toPx(), size.minDimension / 2))
+                drawRoundRect(Color.Black, at, size, round, blendMode = BlendMode.Clear)
+                drawRoundRect(Color(0x55FFFFFF), at, size, round, style = Stroke(9.dp.toPx()))
+                drawRoundRect(Color.White, at, size, round, style = Stroke(3.dp.toPx()))
+            }
+        }
+        // The card keeps out of the way: at the top when the lit part is in the lower half.
+        val low = spot != null && spot.center.y > constraints.maxHeight / 2f
+        Column(Modifier.align(if (low) Alignment.TopCenter else Alignment.BottomCenter).systemBarsPadding()
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = if (spot == null) 104.dp else 16.dp)
             .fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(C.CardHigh)
             .border(1.dp, C.Violet, RoundedCornerShape(24.dp)).padding(18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

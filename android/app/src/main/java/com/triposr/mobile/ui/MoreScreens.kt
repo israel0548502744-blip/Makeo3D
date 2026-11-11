@@ -596,7 +596,7 @@ fun ProjectsScreen() {
                 horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp)) {
                 items(list, key = { it.id }) { p ->
-                    Box {
+                    Box(if (p.id == list.first().id) Modifier.tourTarget("project") else Modifier) {
                         ProjectThumb(p, Modifier.fillMaxWidth())
                         Box(Modifier.align(Alignment.TopEnd).padding(16.dp).size(34.dp).clip(CircleShape)
                             .background(Color(0xAA120B2A)).border(1.dp, Color(0x33FFFFFF), CircleShape)

@@ -9,9 +9,10 @@ import android.graphics.Color
  * matched to the mesh's box seen from there. The model does not keep the camera's direction
  * (convert/sg_eval.py axes: a mug, a house and a figure face +Z, a dinosaur in profile faces +X),
  * so the side is found per mesh: the view around the up axis whose outline best matches the
- * picture's outline. Vertices the camera sees take the pixel
- * in front of them; hidden ones (the back, under the arms) take the pixel at the same place,
- * like a print going through, or the pixel of an optional back picture (mirrored).
+ * picture's outline. Vertices the camera sees face-on take the pixel in front of them. The rest
+ * (the back, the sides seen edge-on, under the arms) take the pixel of an optional back picture
+ * (mirrored), or else the color of the painted surface next to them, spreading over the mesh:
+ * a print going straight through smears stripes and shadows along the sides.
  */
 object MeshColor {
     /** Views tried around the up axis (degrees from +Z toward +X). */
@@ -128,6 +129,66 @@ object MeshColor {
         }
     }
 
+    /** How much a surface must face the camera (cosine) for its pixel to be trusted. */
+    private const val FACING = 0.35f
+
+    /**
+     * Gives every vertex that is not [sure] the color of the sure surface nearest to it along
+     * the mesh: ring by ring outward from the painted part, then evened out.
+     */
+    private fun spread(mesh: Mesh, rgb: FloatArray, sure: BooleanArray) {
+        val n = mesh.vertexCount; val idx = mesh.indices
+        if (sure.none { it } || sure.all { it }) return
+        val start = IntArray(n + 1)
+        for (v in idx) start[v + 1] += 2
+        for (v in 0 until n) start[v + 1] += start[v]
+        val fill = start.copyOf(n)
+        val list = IntArray(idx.size * 2)
+        for (t in 0 until idx.size / 3) for (e in 0..2) {
+            val v = idx[t * 3 + e]
+            list[fill[v]++] = idx[t * 3 + (e + 1) % 3]
+            list[fill[v]++] = idx[t * 3 + (e + 2) % 3]
+        }
+        val done = sure.copyOf()
+        var ring = IntList()
+        for (v in 0 until n) if (done[v]) ring.add(v)
+        var front = ring.toArray()
+        val queued = BooleanArray(n)
+        while (front.isNotEmpty()) {
+            val next = IntList()
+            for (v in front) for (k in start[v] until start[v + 1]) {
+                val u = list[k]
+                if (!done[u] && !queued[u]) { queued[u] = true; next.add(u) }
+            }
+            val ring2 = next.toArray()
+            // A new ring is colored from what was there before it, then joins it.
+            for (u in ring2) {
+                var r = 0f; var g = 0f; var b = 0f; var c = 0
+                for (k in start[u] until start[u + 1]) {
+                    val w = list[k]
+                    if (done[w]) { r += rgb[w * 3]; g += rgb[w * 3 + 1]; b += rgb[w * 3 + 2]; c++ }
+                }
+                if (c > 0) { rgb[u * 3] = r / c; rgb[u * 3 + 1] = g / c; rgb[u * 3 + 2] = b / c }
+            }
+            for (u in ring2) done[u] = true
+            front = ring2
+        }
+        // Even out the filled part, so the rings leave no streaks.
+        val filled = IntList()
+        for (v in 0 until n) if (done[v] && !sure[v]) filled.add(v)
+        val f = filled.toArray()
+        val tmp = FloatArray(f.size * 3)
+        repeat(8) {
+            for ((i, u) in f.withIndex()) {
+                var r = 0f; var g = 0f; var b = 0f; var c = 0
+                for (k in start[u] until start[u + 1]) { val w = list[k]; r += rgb[w * 3]; g += rgb[w * 3 + 1]; b += rgb[w * 3 + 2]; c++ }
+                if (c == 0) { tmp[i * 3] = rgb[u * 3]; tmp[i * 3 + 1] = rgb[u * 3 + 1]; tmp[i * 3 + 2] = rgb[u * 3 + 2] }
+                else { tmp[i * 3] = r / c; tmp[i * 3 + 1] = g / c; tmp[i * 3 + 2] = b / c }
+            }
+            for ((i, u) in f.withIndex()) { rgb[u * 3] = tmp[i * 3]; rgb[u * 3 + 1] = tmp[i * 3 + 1]; rgb[u * 3 + 2] = tmp[i * 3 + 2] }
+        }
+    }
+
     /** Per-vertex RGB (0..1) for [mesh]; [back] is an optional picture of the other side. */
     fun paint(mesh: Mesh, front: Bitmap, back: Bitmap? = null): FloatArray {
         val n = mesh.vertexCount
@@ -159,6 +220,12 @@ object MeshColor {
         val eps = (view.maxD - view.minD) * 0.02f
         val out = FloatArray(n * 3)
         var seen = 0
+        // Toward the camera: (sin a, 0, cos a). A surface turned away by more than ~70° shows the
+        // picture stretched and takes the outline's shadow, so it is not trusted.
+        val rad = Math.toRadians(view.deg.toDouble())
+        val dx = Math.sin(rad).toFloat(); val dz = Math.cos(rad).toFloat()
+        val nrm = mesh.normals
+        val sure = BooleanArray(n)
         for (i in 0 until n) {
             // The nearest surface around the vertex (its own cell and the neighbours).
             val cx = (su[i] * (g - 1)).toInt(); val cy = (sv[i] * (g - 1)).toInt()
@@ -169,11 +236,14 @@ object MeshColor {
             }
             val visible = depth[i] >= near - eps
             if (visible) seen++
+            val facing = nrm.size == n * 3 && nrm[i * 3] * dx + nrm[i * 3 + 2] * dz > FACING
             when {
-                visible || backPic == null -> frontPic.sample(su[i], sv[i], out, i * 3)
-                else -> backPic.sample(1f - su[i], sv[i], out, i * 3)  // the back picture is mirrored
+                visible && facing -> { frontPic.sample(su[i], sv[i], out, i * 3); sure[i] = true }
+                !visible && backPic != null -> { backPic.sample(1f - su[i], sv[i], out, i * 3); sure[i] = true }  // mirrored
+                else -> frontPic.sample(su[i], sv[i], out, i * 3)  // kept only where nothing sure is connected
             }
         }
+        spread(mesh, out, sure)
         CrashLog.log("Mesh colors from the picture (camera at ${view.deg}°, outline match " +
             scores.joinToString(" ") { "%.2f".format(it) } + "): " +
             "${seen * 100 / n.coerceAtLeast(1)}% of vertices seen" +

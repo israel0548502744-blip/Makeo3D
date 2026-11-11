@@ -30,6 +30,21 @@ class MeshEditTest {
         assertTrue("nothing more to undo", !e.undo())
     }
 
+    @Test fun erasingPartOfABodyLeavesItClosed() {
+        val e = MeshEditor(scene())
+        e.erase(intArrayOf(4)); e.endStroke()   // the four triangles around vertex 4 go
+        val m = e.result()
+        val edges = HashSet<Long>()
+        for (t in 0 until m.triangleCount) for (k in 0..2)
+            edges.add((m.indices[t * 3 + k].toLong() shl 32) or m.indices[t * 3 + (k + 1) % 3].toLong())
+        assertTrue("every edge has its opposite: no hole is left",
+            edges.all { ((it and 0xFFFFFFFFL) shl 32) or (it ushr 32) in edges })
+        assertEquals("the hole is patched with one triangle per rim edge", 12, m.triangleCount)
+        assertTrue(e.undo())
+        assertEquals("undo removes the patch and brings the part back", 12 * 3, e.indices.size)
+        assertEquals(10, e.result().vertexCount)
+    }
+
     @Test fun loosePiecesGoAndTheBiggestStays() {
         val e = MeshEditor(scene())
         assertEquals(1, e.removeLoose())

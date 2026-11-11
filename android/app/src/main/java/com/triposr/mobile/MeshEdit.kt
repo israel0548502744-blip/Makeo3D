@@ -5,22 +5,27 @@ package com.triposr.mobile
  * Works on a copy; [result] gives the cleaned mesh. Each stroke can be undone.
  */
 class MeshEditor(private val src: Mesh) {
-    /** Vertex positions as edited so far (changed in place by [smooth]). */
-    val positions: FloatArray = src.positions.copyOf()
-    private val idx = src.indices
-    private val alive = BooleanArray(src.triangleCount) { true }
+    // Everything grows: closing a hole adds a vertex and triangles.
+    /** Vertex positions as edited so far. */
+    var positions: FloatArray = src.positions.copyOf(); private set
+    var colors: FloatArray = src.colors.copyOf(); private set
+    private var idx = src.indices.copyOf()
+    private var uv = src.uvs?.copyOf()
+    private var nv = src.vertexCount
+    private var nt = src.triangleCount
+    private var alive = BooleanArray(nt) { true }
     /** How many live triangles use each vertex; 0 = the vertex is gone. */
-    private val degree = IntArray(src.vertexCount).also { d -> for (v in idx) d[v]++ }
+    private var degree = IntArray(nv).also { d -> for (v in idx) d[v]++ }
     /** The triangles still there. A new array after every change. */
-    @Volatile var indices: IntArray = idx; private set
+    @Volatile var indices: IntArray = src.indices; private set
 
-    private class Step(val killed: IntArray, val moved: IntArray, val old: FloatArray)
+    private class Step(val killed: IntArray, val added: IntArray, val moved: IntArray, val old: FloatArray)
     private val steps = ArrayList<Step>()
     private var killed = IntList()
     private var moved = IntList()
     private var old = FloatList()
-    private val touched = BooleanArray(src.vertexCount)
-    private val flag = BooleanArray(src.vertexCount)
+    private var touched = BooleanArray(nv)
+    private var flag = BooleanArray(nv)
 
     val changed get() = steps.isNotEmpty()
 
@@ -30,18 +35,89 @@ class MeshEditor(private val src: Mesh) {
 
     private fun neighbours() {
         if (nStart.isNotEmpty()) return
-        val n = src.vertexCount
-        val start = IntArray(n + 1)
-        for (v in idx) start[v + 1] += 2
-        for (v in 0 until n) start[v + 1] += start[v]
-        val fill = start.copyOf(n)
-        val list = IntArray(idx.size * 2)
-        for (t in 0 until idx.size / 3) for (e in 0..2) {
+        val start = IntArray(nv + 1)
+        for (i in 0 until nt * 3) start[idx[i] + 1] += 2
+        for (v in 0 until nv) start[v + 1] += start[v]
+        val fill = start.copyOf(nv)
+        val list = IntArray(nt * 6)
+        for (t in 0 until nt) for (e in 0..2) {
             val v = idx[t * 3 + e]
             list[fill[v]++] = idx[t * 3 + (e + 1) % 3]
             list[fill[v]++] = idx[t * 3 + (e + 2) % 3]
         }
         nStart = start; nList = list
+    }
+
+    private fun room(verts: Int, tris: Int) {
+        if (nv + verts > degree.size) {
+            val n = (nv + verts) * 5 / 4 + 16
+            positions = positions.copyOf(n * 3); colors = colors.copyOf(n * 3)
+            degree = degree.copyOf(n); touched = touched.copyOf(n); flag = flag.copyOf(n)
+        }
+        if (nt + tris > alive.size) {
+            val n = (nt + tris) * 5 / 4 + 16
+            idx = idx.copyOf(n * 3); alive = alive.copyOf(n); uv = uv?.copyOf(n * 6)
+        }
+    }
+
+    /**
+     * Closes the holes left by the triangles in [gone]: each hole's rim is joined to a new
+     * vertex in its middle, so the surface stays closed, as if the part was cut off with a knife.
+     * Returns the triangles added.
+     */
+    private fun close(gone: IntArray): IntArray {
+        fun key(a: Int, b: Int) = (a.toLong() shl 32) or b.toLong()
+        val cut = HashSet<Long>(gone.size * 4)
+        for (t in gone) for (e in 0..2) cut.add(key(idx[t * 3 + e], idx[t * 3 + (e + 1) % 3]))
+        // A rim edge: the triangle on its other side is still there.
+        val rimT = IntList(); val rimE = IntList()
+        val parent = HashMap<Int, Int>()
+        fun find(x: Int): Int { var r = x; while (true) { val p = parent[r] ?: r; if (p == r) break; r = p }; return r }
+        for (t in gone) for (e in 0..2) {
+            val a = idx[t * 3 + e]; val b = idx[t * 3 + (e + 1) % 3]
+            if (key(b, a) in cut || degree[a] == 0 || degree[b] == 0) continue
+            rimT.add(t); rimE.add(e)
+            val ra = find(a); val rb = find(b)
+            if (ra != rb) parent[rb] = ra
+        }
+        val ts = rimT.toArray(); val es = rimE.toArray()
+        if (ts.isEmpty()) return IntArray(0)
+        // One middle vertex per rim: the average of the rim's vertices and colors.
+        class Mid(var n: Int = 0, val sum: FloatArray = FloatArray(6), var vertex: Int = -1)
+        val mids = HashMap<Int, Mid>()
+        for (i in ts.indices) {
+            val a = idx[ts[i] * 3 + es[i]]
+            val m = mids.getOrPut(find(a)) { Mid() }
+            m.n++
+            for (c in 0..2) { m.sum[c] += positions[a * 3 + c]; m.sum[3 + c] += colors[a * 3 + c] }
+        }
+        room(mids.size, ts.size)
+        for (m in mids.values) {
+            if (m.n < 3) continue
+            m.vertex = nv
+            for (c in 0..2) { positions[nv * 3 + c] = m.sum[c] / m.n; colors[nv * 3 + c] = m.sum[3 + c] / m.n }
+            degree[nv] = 0; nv++
+        }
+        val added = IntList()
+        for (i in ts.indices) {
+            val t = ts[i]; val e = es[i]
+            val a = idx[t * 3 + e]; val b = idx[t * 3 + (e + 1) % 3]
+            val c = mids[find(a)]!!.vertex
+            if (c < 0) continue
+            idx[nt * 3] = a; idx[nt * 3 + 1] = b; idx[nt * 3 + 2] = c
+            uv?.let { u ->
+                // The rim's own place in the texture, so the patch takes the color around it.
+                u[nt * 6] = u[t * 6 + e * 2]; u[nt * 6 + 1] = u[t * 6 + e * 2 + 1]
+                val f = (e + 1) % 3
+                u[nt * 6 + 2] = u[t * 6 + f * 2]; u[nt * 6 + 3] = u[t * 6 + f * 2 + 1]
+                u[nt * 6 + 4] = u[nt * 6]; u[nt * 6 + 5] = u[nt * 6 + 1]
+            }
+            alive[nt] = true
+            degree[a]++; degree[b]++; degree[c]++
+            added.add(nt); nt++
+        }
+        nStart = IntArray(0)  // the neighbours changed
+        return added.toArray()
     }
 
     /**
@@ -52,7 +128,7 @@ class MeshEditor(private val src: Mesh) {
         val hit = IntList(); val depth = FloatList()
         var near = Float.MAX_VALUE
         val r2 = r * r
-        for (v in degree.indices) {
+        for (v in 0 until nv) {
             if (degree[v] == 0) continue
             val px = positions[v * 3]; val py = positions[v * 3 + 1]; val pz = positions[v * 3 + 2]
             val cw = mvp[3] * px + mvp[7] * py + mvp[11] * pz + mvp[15]
@@ -79,7 +155,7 @@ class MeshEditor(private val src: Mesh) {
         if (verts.isEmpty()) return
         for (v in verts) flag[v] = true
         var any = false
-        for (t in alive.indices) {
+        for (t in 0 until nt) {
             if (!alive[t]) continue
             val a = idx[t * 3]; val b = idx[t * 3 + 1]; val c = idx[t * 3 + 2]
             if (flag[a] || flag[b] || flag[c]) { kill(t); any = true }
@@ -122,7 +198,10 @@ class MeshEditor(private val src: Mesh) {
         if (killed.size == 0 && moved.size == 0) return
         val m = moved.toArray()
         for (v in m) touched[v] = false
-        steps.add(Step(killed.toArray(), m, old.toArray()))
+        val gone = killed.toArray()
+        val added = if (gone.isNotEmpty()) close(gone) else IntArray(0)
+        if (added.isNotEmpty()) rebuild()
+        steps.add(Step(gone, added, m, old.toArray()))
         if (steps.size > 30) steps.removeAt(0)
         killed = IntList(); moved = IntList(); old = FloatList()
     }
@@ -130,16 +209,16 @@ class MeshEditor(private val src: Mesh) {
     /** Keeps the biggest connected piece and removes the rest. Returns how many pieces went. */
     fun removeLoose(): Int {
         endStroke()
-        val parent = IntArray(src.vertexCount) { it }
+        val parent = IntArray(nv) { it }
         fun find(x: Int): Int { var r = x; while (parent[r] != r) { parent[r] = parent[parent[r]]; r = parent[r] }; return r }
-        for (t in alive.indices) if (alive[t]) {
+        for (t in 0 until nt) if (alive[t]) {
             val a = find(idx[t * 3]); val b = find(idx[t * 3 + 1]); val c = find(idx[t * 3 + 2])
             parent[b] = a; parent[c] = a
         }
         val size = HashMap<Int, Int>()
-        for (t in alive.indices) if (alive[t]) size.merge(find(idx[t * 3]), 1, Int::plus)
+        for (t in 0 until nt) if (alive[t]) size.merge(find(idx[t * 3]), 1, Int::plus)
         val keep = size.maxByOrNull { it.value }?.key ?: return 0
-        for (t in alive.indices) if (alive[t] && find(idx[t * 3]) != keep) kill(t)
+        for (t in 0 until nt) if (alive[t] && find(idx[t * 3]) != keep) kill(t)
         if (killed.size > 0) rebuild()
         endStroke()
         return size.size - 1
@@ -150,6 +229,7 @@ class MeshEditor(private val src: Mesh) {
         endStroke()
         if (steps.isEmpty()) return false
         val s = steps.removeAt(steps.size - 1)
+        for (t in s.added) { alive[t] = false; for (e in 0..2) degree[idx[t * 3 + e]]-- }
         for (t in s.killed) { alive[t] = true; for (e in 0..2) degree[idx[t * 3 + e]]++ }
         for ((i, v) in s.moved.withIndex()) { positions[v * 3] = s.old[i * 3]; positions[v * 3 + 1] = s.old[i * 3 + 1]; positions[v * 3 + 2] = s.old[i * 3 + 2] }
         rebuild()
@@ -157,37 +237,40 @@ class MeshEditor(private val src: Mesh) {
     }
 
     private fun rebuild() {
-        val out = IntArray(alive.count { it } * 3)
+        var live = 0
+        for (t in 0 until nt) if (alive[t]) live++
+        val out = IntArray(live * 3)
         var k = 0
-        for (t in alive.indices) if (alive[t]) { out[k++] = idx[t * 3]; out[k++] = idx[t * 3 + 1]; out[k++] = idx[t * 3 + 2] }
+        for (t in 0 until nt) if (alive[t]) { out[k++] = idx[t * 3]; out[k++] = idx[t * 3 + 1]; out[k++] = idx[t * 3 + 2] }
         indices = out
     }
 
     /** Normals for [positions] as they are now. */
-    fun normals(): FloatArray = MeshTools.normals(positions, idx)
+    fun normals(): FloatArray = MeshTools.normals(positions, indices)
 
     /** The cleaned mesh: unused vertices dropped, colors and texture carried over. */
     fun result(): Mesh {
         endStroke()
-        val map = IntArray(src.vertexCount) { -1 }
+        val map = IntArray(nv) { -1 }
         var n = 0
-        for (v in degree.indices) if (degree[v] > 0) map[v] = n++
+        for (v in 0 until nv) if (degree[v] > 0) map[v] = n++
         val pos = FloatArray(n * 3); val col = FloatArray(n * 3)
-        for (v in map.indices) {
+        for (v in 0 until nv) {
             val m = map[v]; if (m < 0) continue
-            for (c in 0..2) { pos[m * 3 + c] = positions[v * 3 + c]; col[m * 3 + c] = src.colors[v * 3 + c] }
+            for (c in 0..2) { pos[m * 3 + c] = positions[v * 3 + c]; col[m * 3 + c] = colors[v * 3 + c] }
         }
-        val live = alive.count { it }
+        var live = 0
+        for (t in 0 until nt) if (alive[t]) live++
         val tri = IntArray(live * 3)
-        val uv = src.uvs?.let { FloatArray(live * 6) }
+        val uvs = uv?.let { FloatArray(live * 6) }
         var k = 0
-        for (t in alive.indices) if (alive[t]) {
+        for (t in 0 until nt) if (alive[t]) {
             for (e in 0..2) tri[k * 3 + e] = map[idx[t * 3 + e]]
-            uv?.let { System.arraycopy(src.uvs!!, t * 6, it, k * 6, 6) }
+            uvs?.let { System.arraycopy(uv!!, t * 6, it, k * 6, 6) }
             k++
         }
         return Mesh(pos, MeshTools.normals(pos, tri), col, tri).also {
-            it.uvs = uv; it.texture = if (uv != null) src.texture else null; it.sizeMm = src.sizeMm
+            it.uvs = uvs; it.texture = if (uvs != null) src.texture else null; it.sizeMm = src.sizeMm
         }
     }
 }
