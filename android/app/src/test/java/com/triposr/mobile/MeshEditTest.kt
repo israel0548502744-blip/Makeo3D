@@ -139,7 +139,7 @@ class MeshEditTest {
         val e = MeshEditor(scene())
         e.erase(intArrayOf(4)); e.endStroke()
         assertTrue(e.undo())
-        e.erase(intArrayOf(9)); e.endStroke()   // the crumb goes instead
+        e.erase(intArrayOf(6, 7, 8, 9)); e.endStroke()   // the crumb goes instead
         assertTrue(!e.redo())
         assertEquals(8, e.result().triangleCount)
     }
