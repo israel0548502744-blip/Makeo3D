@@ -342,11 +342,7 @@ object Creations {
         val bw = b[2] - b[0] + 1; val bh = b[3] - b[1] + 1
         val cell = o.sizeMm / maxOf(bw, bh)
         // Optional writing in the middle of the shape, sunk into the cast.
-        val mark = if (text.isBlank()) null else {
-            val t = Crafts.fitText(text, bh * cell * 0.22f, bw * cell * 0.6f, cell)
-            val ox = b[0] + (bw - t.w) / 2; val oy = b[1] + (bh - t.h) / 2
-            BooleanArray(m.w * m.h) { t[it % m.w - ox, it / m.w - oy] }
-        }
+        val mark = if (text.isBlank()) null else Crafts.textInside(m, text, bh * cell * 0.22f, bw * cell * 0.6f, cell)
         val (cols, rows) = when (o.copies) { 2 -> 2 to 1; 4 -> 2 to 2; 6 -> 3 to 2; else -> 1 to 1 }
         return Templates.castingMold(m, depth, cell, o.reliefMm, o.moldMaster, mark, o.wick && !o.moldMaster, cols, rows) to preview(m)
     }

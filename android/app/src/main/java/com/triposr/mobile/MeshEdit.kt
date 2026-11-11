@@ -19,8 +19,11 @@ class MeshEditor(private val src: Mesh) {
     /** The triangles still there. A new array after every change. */
     @Volatile var indices: IntArray = src.indices; private set
 
-    private class Step(val killed: IntArray, val added: IntArray, val moved: IntArray, val old: FloatArray)
+    private class Step(val killed: IntArray, val added: IntArray, val moved: IntArray, val old: FloatArray, val new: FloatArray)
     private val steps = ArrayList<Step>()
+    private val undone = ArrayList<Step>()
+    /** Normals as they were when the stroke began: pushing along them does not feed on itself. */
+    private var strokeNormals: FloatArray? = null
     private var killed = IntList()
     private var moved = IntList()
     private var old = FloatList()
@@ -28,6 +31,11 @@ class MeshEditor(private val src: Mesh) {
     private var flag = BooleanArray(nv)
 
     val changed get() = steps.isNotEmpty()
+    val canUndo get() = steps.isNotEmpty()
+    val canRedo get() = undone.isNotEmpty()
+
+    /** What a brush touches: the vertices, how strongly each (1 in the middle, 0 at the edge), and the brush's radius in model units. */
+    class Pick(val verts: IntArray, val weight: FloatArray, val radius: Float)
 
     // Neighbours of each vertex (built when first needed): nList[nStart[v] until nStart[v + 1]].
     private var nStart = IntArray(0)
@@ -189,8 +197,8 @@ class MeshEditor(private val src: Mesh) {
      * Vertices under a round brush at ([x], [y]) with radius [r], all in view pixels, for the
      * camera [mvp]. Unless [through], only the surface facing the camera: what lies behind stays.
      */
-    fun pick(mvp: FloatArray, w: Int, h: Int, x: Float, y: Float, r: Float, through: Boolean): IntArray {
-        val hit = IntList(); val depth = FloatList()
+    fun pick(mvp: FloatArray, w: Int, h: Int, x: Float, y: Float, r: Float, through: Boolean): Pick {
+        val hit = IntList(); val depth = FloatList(); val dist = FloatList()
         var near = Float.MAX_VALUE
         val r2 = r * r
         for (v in 0 until nv) {
@@ -201,18 +209,23 @@ class MeshEditor(private val src: Mesh) {
             val sx = ((mvp[0] * px + mvp[4] * py + mvp[8] * pz + mvp[12]) / cw * 0.5f + 0.5f) * w
             val sy = (0.5f - (mvp[1] * px + mvp[5] * py + mvp[9] * pz + mvp[13]) / cw * 0.5f) * h
             val dx = sx - x; val dy = sy - y
-            if (dx * dx + dy * dy > r2) continue
-            hit.add(v); depth.add(cw)
+            val d2 = dx * dx + dy * dy
+            if (d2 > r2) continue
+            hit.add(v); depth.add(cw); dist.add(d2 / r2)
             if (cw < near) near = cw
         }
-        val all = hit.toArray()
-        if (through || all.isEmpty()) return all
-        // One brush width deep, measured where the nearest hit is (the view angle is 40°).
-        val reach = maxOf(r * 0.728f * near / h * 1.2f, 0.01f)
-        val d = depth.toArray()
-        val out = IntList()
-        for (i in all.indices) if (d[i] <= near + reach) out.add(all[i])
-        return out.toArray()
+        val all = hit.toArray(); val d = depth.toArray(); val q = dist.toArray()
+        if (all.isEmpty()) return Pick(all, q, 0f)
+        // The brush's radius where the nearest hit is (the view angle is 40 degrees), and one brush width deep.
+        val radius = r * 0.728f * near / h
+        val reach = maxOf(radius * 1.2f, 0.01f)
+        val out = IntList(); val wt = FloatList()
+        for (i in all.indices) if (through || d[i] <= near + reach) {
+            out.add(all[i])
+            val k = 1f - q[i]          // 1 in the middle, 0 at the edge, soft in between
+            wt.add(k * k * (3f - 2f * k))
+        }
+        return Pick(out.toArray(), wt.toArray(), radius)
     }
 
     /** Removes every triangle that touches one of [verts]. */
@@ -234,14 +247,22 @@ class MeshEditor(private val src: Mesh) {
         for (e in 0..2) degree[idx[t * 3 + e]]--
     }
 
-    /** Pulls [verts] toward the middle of their neighbours: bumps and spikes sink into the surface. */
-    fun smooth(verts: IntArray) {
-        if (verts.isEmpty()) return
-        neighbours()
+    /** Notes where [verts] were before the stroke moves them, for undo. */
+    private fun remember(verts: IntArray) {
         for (v in verts) if (!touched[v]) {
             touched[v] = true; moved.add(v)
             old.add(positions[v * 3]); old.add(positions[v * 3 + 1]); old.add(positions[v * 3 + 2])
         }
+    }
+
+    private fun normalsNow(): FloatArray = strokeNormals ?: MeshTools.normals(positions, indices).also { strokeNormals = it }
+
+    /** Pulls the picked vertices toward the middle of their neighbours: bumps and spikes sink into the surface. */
+    fun smooth(p: Pick, strength: Float = 1f) {
+        val verts = p.verts
+        if (verts.isEmpty()) return
+        neighbours()
+        remember(verts)
         val next = FloatArray(verts.size * 3)
         repeat(3) {
             for ((i, v) in verts.withIndex()) {
@@ -249,13 +270,57 @@ class MeshEditor(private val src: Mesh) {
                 val from = nStart[v]; val to = nStart[v + 1]
                 for (k in from until to) { val n = nList[k]; sx += positions[n * 3]; sy += positions[n * 3 + 1]; sz += positions[n * 3 + 2] }
                 val c = (to - from).toFloat()
-                if (c == 0f) { next[i * 3] = positions[v * 3]; next[i * 3 + 1] = positions[v * 3 + 1]; next[i * 3 + 2] = positions[v * 3 + 2]; continue }
-                next[i * 3] = positions[v * 3] + 0.6f * (sx / c - positions[v * 3])
-                next[i * 3 + 1] = positions[v * 3 + 1] + 0.6f * (sy / c - positions[v * 3 + 1])
-                next[i * 3 + 2] = positions[v * 3 + 2] + 0.6f * (sz / c - positions[v * 3 + 2])
+                val f = if (c == 0f) 0f else 0.7f * strength.coerceIn(0f, 1f) * p.weight[i]
+                next[i * 3] = positions[v * 3] + f * (sx / maxOf(c, 1f) - positions[v * 3])
+                next[i * 3 + 1] = positions[v * 3 + 1] + f * (sy / maxOf(c, 1f) - positions[v * 3 + 1])
+                next[i * 3 + 2] = positions[v * 3 + 2] + f * (sz / maxOf(c, 1f) - positions[v * 3 + 2])
             }
             for ((i, v) in verts.withIndex()) { positions[v * 3] = next[i * 3]; positions[v * 3 + 1] = next[i * 3 + 1]; positions[v * 3 + 2] = next[i * 3 + 2] }
         }
+    }
+
+    /** Pushes the picked surface outward ([amount] > 0, adds material) or inward ([amount] < 0), in brush radii. */
+    fun push(p: Pick, amount: Float) {
+        if (p.verts.isEmpty()) return
+        val n = normalsNow()
+        remember(p.verts)
+        for ((i, v) in p.verts.withIndex()) {
+            if (v * 3 + 2 >= n.size) continue
+            val d = amount * p.radius * p.weight[i]
+            positions[v * 3] += n[v * 3] * d; positions[v * 3 + 1] += n[v * 3 + 1] * d; positions[v * 3 + 2] += n[v * 3 + 2] * d
+        }
+    }
+
+    /** Presses the picked surface toward one flat plane: its own average position and direction. */
+    fun flatten(p: Pick, strength: Float = 1f) {
+        if (p.verts.size < 3) return
+        val n = normalsNow()
+        remember(p.verts)
+        var cx = 0f; var cy = 0f; var cz = 0f; var nx = 0f; var ny = 0f; var nz = 0f; var sum = 0f
+        for ((i, v) in p.verts.withIndex()) {
+            if (v * 3 + 2 >= n.size) continue
+            val w = p.weight[i] + 0.05f
+            cx += positions[v * 3] * w; cy += positions[v * 3 + 1] * w; cz += positions[v * 3 + 2] * w
+            nx += n[v * 3] * w; ny += n[v * 3 + 1] * w; nz += n[v * 3 + 2] * w; sum += w
+        }
+        val l = kotlin.math.sqrt(nx * nx + ny * ny + nz * nz)
+        if (sum == 0f || l < 1e-6f) return
+        cx /= sum; cy /= sum; cz /= sum; nx /= l; ny /= l; nz /= l
+        for ((i, v) in p.verts.withIndex()) {
+            val off = (positions[v * 3] - cx) * nx + (positions[v * 3 + 1] - cy) * ny + (positions[v * 3 + 2] - cz) * nz
+            val f = off * strength.coerceIn(0f, 1f) * p.weight[i]
+            positions[v * 3] -= nx * f; positions[v * 3 + 1] -= ny * f; positions[v * 3 + 2] -= nz * f
+        }
+    }
+
+    /** One gentle smoothing of the whole model, as a single step. */
+    fun smoothAll() {
+        endStroke()
+        val live = IntList()
+        for (v in 0 until nv) if (degree[v] > 0) live.add(v)
+        val all = live.toArray()
+        smooth(Pick(all, FloatArray(all.size) { 1f }, 0f), 0.6f)
+        endStroke()
     }
 
     /** Closes the stroke in progress so that [undo] takes it back as one. */
@@ -266,8 +331,12 @@ class MeshEditor(private val src: Mesh) {
         val gone = killed.toArray()
         val added = if (gone.isNotEmpty()) close(gone) else IntArray(0)
         if (added.isNotEmpty()) rebuild()
-        steps.add(Step(gone, added, m, old.toArray()))
+        val now = FloatArray(m.size * 3)
+        for ((i, v) in m.withIndex()) { now[i * 3] = positions[v * 3]; now[i * 3 + 1] = positions[v * 3 + 1]; now[i * 3 + 2] = positions[v * 3 + 2] }
+        steps.add(Step(gone, added, m, old.toArray(), now))
         if (steps.size > 30) steps.removeAt(0)
+        undone.clear()
+        strokeNormals = null
         killed = IntList(); moved = IntList(); old = FloatList()
     }
 
@@ -294,9 +363,24 @@ class MeshEditor(private val src: Mesh) {
         endStroke()
         if (steps.isEmpty()) return false
         val s = steps.removeAt(steps.size - 1)
+        nStart = IntArray(0)
         for (t in s.added) { alive[t] = false; for (e in 0..2) degree[idx[t * 3 + e]]-- }
         for (t in s.killed) { alive[t] = true; for (e in 0..2) degree[idx[t * 3 + e]]++ }
         for ((i, v) in s.moved.withIndex()) { positions[v * 3] = s.old[i * 3]; positions[v * 3 + 1] = s.old[i * 3 + 1]; positions[v * 3 + 2] = s.old[i * 3 + 2] }
+        undone.add(s)
+        rebuild()
+        return true
+    }
+
+    /** Does again the stroke that [undo] took back. */
+    fun redo(): Boolean {
+        if (undone.isEmpty()) return false
+        val s = undone.removeAt(undone.size - 1)
+        for (t in s.killed) { alive[t] = false; for (e in 0..2) degree[idx[t * 3 + e]]-- }
+        for (t in s.added) { alive[t] = true; for (e in 0..2) degree[idx[t * 3 + e]]++ }
+        for ((i, v) in s.moved.withIndex()) { positions[v * 3] = s.new[i * 3]; positions[v * 3 + 1] = s.new[i * 3 + 1]; positions[v * 3 + 2] = s.new[i * 3 + 2] }
+        steps.add(s)
+        nStart = IntArray(0)
         rebuild()
         return true
     }

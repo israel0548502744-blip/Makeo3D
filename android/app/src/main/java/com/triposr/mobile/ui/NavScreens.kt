@@ -196,15 +196,20 @@ fun Advanced(title: String = tr("מתקדם"), content: @Composable () -> Unit) 
     if (open) content()
 }
 
-/** Make: everything that can be created, in groups. (The search field waits until there is more to search.) */
+/** Make: everything that can be created, in groups, with a search across all of it. */
 @Composable
 fun MakeScreen() {
+    var query by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize()) {
         TopBar(tr("יצירה"))
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            PhotoHero()
-            for (c in Category.entries) CategoryRow(c)
+            SearchField(query, tr("חיפוש יצירה… למשל \"מגנט\"")) { query = it }
+            if (query.isNotBlank()) SearchResults(query)
+            else {
+                PhotoHero()
+                for (c in Category.entries) CategoryRow(c)
+            }
             Spacer(Modifier.height(12.dp))
         }
     }

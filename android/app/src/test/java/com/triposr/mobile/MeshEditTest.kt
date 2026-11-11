@@ -21,7 +21,7 @@ class MeshEditTest {
 
     @Test fun eraseTakesWhatIsUnderTheBrushAndUndoBringsItBack() {
         val e = MeshEditor(scene())
-        val under = e.pick(camera, 1000, 1000, 750f, 500f, 80f, through = true)
+        val under = e.pick(camera, 1000, 1000, 750f, 500f, 80f, through = true).verts
         assertTrue("the brush over the crumb finds its vertices", under.isNotEmpty() && under.all { it >= 6 })
         e.erase(under); e.endStroke()
         assertEquals("the crumb is gone, the body is whole", 8 * 3, e.indices.size)
@@ -103,11 +103,45 @@ class MeshEditTest {
         val src = scene()
         src.positions[4 * 3 + 2] = 2f   // vertex 4 sticks far out
         val e = MeshEditor(src)
-        e.smooth(intArrayOf(4)); e.endStroke()
+        e.smooth(MeshEditor.Pick(intArrayOf(4), floatArrayOf(1f), 0.1f)); e.endStroke()
         assertTrue("the spike is lower", e.positions[4 * 3 + 2] < 1f)
         assertEquals("smoothing removes nothing", 12 * 3, e.indices.size)
         assertTrue(e.undo())
         assertEquals(2f, e.positions[4 * 3 + 2], 0f)
+        assertTrue("redo does the stroke again", e.redo())
+        assertTrue(e.positions[4 * 3 + 2] < 1f)
+        assertTrue("nothing more to redo", !e.redo())
+    }
+
+    @Test fun raisingAddsMaterialSinkingTakesItAndFlatteningLevels() {
+        val src = ball()
+        val top = (0 until src.vertexCount).filter { src.positions[it * 3 + 2] > 0.9f }.toIntArray()
+        fun height(e: MeshEditor) = top.map { e.positions[it * 3 + 2] }.average()
+        fun spread(e: MeshEditor) = top.maxOf { e.positions[it * 3 + 2] } - top.minOf { e.positions[it * 3 + 2] }
+        val pick = MeshEditor.Pick(top, FloatArray(top.size) { 1f }, 0.3f)
+
+        val up = MeshEditor(src); val before = height(up)
+        up.push(pick, 0.5f); up.endStroke()
+        assertTrue("raised: the surface moved outward", height(up) > before + 0.1)
+        val down = MeshEditor(src)
+        down.push(pick, -0.5f); down.endStroke()
+        assertTrue("sunk: the surface moved inward", height(down) < before - 0.1)
+        assertEquals("shaping removes nothing", src.triangleCount * 3, down.indices.size)
+
+        val flat = MeshEditor(src); val round = spread(flat)
+        flat.flatten(pick); flat.endStroke()
+        assertTrue("flattened: the cap is level (${spread(flat)} from ${round})", spread(flat) < round * 0.1f)
+        assertTrue(flat.undo())
+        assertEquals(round, spread(flat), 1e-6f)
+    }
+
+    @Test fun aNewStrokeAfterUndoForgetsTheRedo() {
+        val e = MeshEditor(scene())
+        e.erase(intArrayOf(4)); e.endStroke()
+        assertTrue(e.undo())
+        e.erase(intArrayOf(9)); e.endStroke()   // the crumb goes instead
+        assertTrue(!e.redo())
+        assertEquals(8, e.result().triangleCount)
     }
 
     @Test fun onlyTheNearSurfaceIsTakenUnlessAskedToReachThrough() {
@@ -119,8 +153,8 @@ class MeshEditTest {
             return (e.positions[v * 3] / w * 0.5f + 0.5f) * 1000f to (0.5f - e.positions[v * 3 + 1] / w * 0.5f) * 1000f
         }
         val (x, y) = at(4)
-        val near = e.pick(cam, 1000, 1000, x, y, 45f, through = false)
-        val all = e.pick(cam, 1000, 1000, x, y, 45f, through = true)
+        val near = e.pick(cam, 1000, 1000, x, y, 45f, through = false).verts
+        val all = e.pick(cam, 1000, 1000, x, y, 45f, through = true).verts
         assertTrue("the front vertex is picked", 4 in near)
         assertTrue("the back vertex is left alone", 5 !in near)
         assertTrue("reaching through takes both", 4 in all && 5 in all)

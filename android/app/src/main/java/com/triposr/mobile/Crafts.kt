@@ -201,6 +201,39 @@ object Crafts {
         return m
     }
 
+    /**
+     * [text] as cells of [shape], placed where all of it lies inside the shape with [marginMm]
+     * to spare: as large as [heightMm] x [maxWidthMm] allows, smaller if the shape is narrow,
+     * and as near the middle of the shape's box as it fits. Centering on the box alone cut the
+     * ends of a name off wherever the shape was narrower than its box (a head on shoulders).
+     */
+    fun textInside(shape: Mask, text: String, heightMm: Float, maxWidthMm: Float, cell: Float, marginMm: Float = 2.5f): BooleanArray {
+        val w = shape.w; val h = shape.h
+        // Summed table: how many shape cells lie above and left of each point.
+        val sum = IntArray((w + 1) * (h + 1))
+        for (y in 0 until h) for (x in 0 until w)
+            sum[(y + 1) * (w + 1) + x + 1] = sum[y * (w + 1) + x + 1] + sum[(y + 1) * (w + 1) + x] - sum[y * (w + 1) + x] + if (shape.cells[y * w + x]) 1 else 0
+        fun full(x0: Int, y0: Int, x1: Int, y1: Int) = x0 >= 0 && y0 >= 0 && x1 <= w && y1 <= h &&
+            sum[y1 * (w + 1) + x1] - sum[y0 * (w + 1) + x1] - sum[y1 * (w + 1) + x0] + sum[y0 * (w + 1) + x0] == (x1 - x0) * (y1 - y0)
+        val b = shape.bounds()!!
+        val cx = (b[0] + b[2]) / 2f; val cy = (b[1] + b[3]) / 2f
+        val m = kotlin.math.ceil(marginMm / cell).toInt()
+        for (scale in floatArrayOf(1f, 0.85f, 0.72f, 0.6f, 0.5f, 0.42f, 0.35f, 0.28f, 0.22f)) {
+            val t = fitText(text, heightMm * scale, maxWidthMm * scale, cell)
+            var best = -1; var bestD = Float.MAX_VALUE
+            for (oy in m..h - t.h - m) for (ox in m..w - t.w - m) {
+                if (!full(ox - m, oy - m, ox + t.w + m, oy + t.h + m)) continue
+                val d = hypot(ox + t.w / 2f - cx, oy + t.h / 2f - cy)
+                if (d < bestD) { bestD = d; best = oy * w + ox }
+            }
+            if (best >= 0) {
+                val ox = best % w; val oy = best / w
+                return BooleanArray(w * h) { t[it % w - ox, it / w - oy] }
+            }
+        }
+        throw IllegalStateException(tr("הכיתוב לא נכנס בתוך הצורה. נסה טקסט קצר יותר או צורה רחבה יותר."))
+    }
+
     private fun rotated(m: Mask) = Mask(m.h, m.w, BooleanArray(m.w * m.h) { i -> m[i / m.h, m.h - 1 - i % m.h] })
 
     /** A picture cut to its object: colors, the object's mask and, when asked, depth (0..1, 1 = nearest). */

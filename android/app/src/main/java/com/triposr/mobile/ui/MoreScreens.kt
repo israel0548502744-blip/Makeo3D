@@ -46,6 +46,13 @@ import androidx.compose.material.icons.rounded.CenterFocusStrong
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.AutoFixHigh
+import androidx.compose.material.icons.rounded.ContentCut
+import androidx.compose.material.icons.rounded.Waves
+import androidx.compose.material.icons.rounded.AddCircle
+import androidx.compose.material.icons.rounded.RemoveCircle
+import androidx.compose.material.icons.rounded.HorizontalRule
+import androidx.compose.material.icons.rounded.ThreeSixty
+import androidx.compose.material.icons.automirrored.rounded.Redo
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.FullscreenExit
@@ -154,6 +161,8 @@ fun ResultScreen() {
     var tool by remember { mutableStateOf(MeshView.Tool.ERASE) }
     var brush by remember { mutableFloatStateOf(60f) }
     var through by remember { mutableStateOf(false) }
+    var strength by remember { mutableFloatStateOf(0.5f) }
+    var edits by remember { mutableStateOf(0) }  // counts strokes, so undo and redo show what they can do
     var ring by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
     var cleaned by remember { mutableStateOf<Mesh?>(null) }
     var big by remember { mutableStateOf(false) }
@@ -205,8 +214,14 @@ fun ResultScreen() {
 
     Column(Modifier.fillMaxSize()) {
         val editor = clean
-        if (editor != null) TopBar(tr("ניקוי הדגם"), onBack = { leaveClean() }) {
-            CircleIcon(Icons.AutoMirrored.Rounded.Undo, tr("בטל פעולה")) { if (editor.undo()) view?.refreshEdit() }
+        if (editor != null) TopBar(tr("עריכה במגע"), onBack = { leaveClean() }) {
+            val n = edits  // read, so the two arrows follow every stroke
+            CircleIcon(Icons.AutoMirrored.Rounded.Undo, tr("בטל פעולה"), tint = if (n >= 0 && editor.canUndo) C.Text else C.Faint) {
+                if (editor.undo()) { view?.refreshEdit(); edits++ }
+            }
+            CircleIcon(Icons.AutoMirrored.Rounded.Redo, tr("בצע שוב"), tint = if (editor.canRedo) C.Text else C.Faint) {
+                if (editor.redo()) { view?.refreshEdit(); edits++ }
+            }
             CircleIcon(Icons.Rounded.Check, tr("סיום"), tint = C.Green) {
                 if (!editor.changed) leaveClean()
                 else if (!busy) {
@@ -242,12 +257,13 @@ fun ResultScreen() {
                     factory = { MeshView(it).also { v ->
                         view = v
                         v.onBrush = { x, y, down -> ring = if (down) androidx.compose.ui.geometry.Offset(x, y) else null }
+                        v.onStroke = { edits++ }
                     } },
                     modifier = Modifier.fillMaxSize(),
                     update = { v ->
                         v.setMesh(if (showThin) thinPreview ?: mesh else mesh)
                         v.setOptions(colors, wire, light, grid, rotate)
-                        if (clean != null) { v.tool = tool; v.brushPx = brush; v.through = through }
+                        if (clean != null) { v.tool = tool; v.brushPx = brush; v.through = through; v.strength = strength }
                     },
                     onRelease = { it.onPause() },
                 )
@@ -270,35 +286,56 @@ fun ResultScreen() {
                 }
             }
         if (editor != null) {
-            Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                val tools = listOf(MeshView.Tool.ERASE to tr("מחק"), MeshView.Tool.SMOOTH to tr("החלק"), MeshView.Tool.ROTATE to tr("סובב"))
-                Segmented(tools.map { it.first }, tool, { t -> tools.first { it.first == t }.second }, { tool = it })
+            Column(Modifier.padding(horizontal = 20.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // The tools, each with its own picture; the one in use is lit.
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    ViewToggle(Icons.Rounded.ContentCut, tr("מחק"), tool == MeshView.Tool.ERASE) { tool = MeshView.Tool.ERASE }
+                    ViewToggle(Icons.Rounded.Waves, tr("החלק"), tool == MeshView.Tool.SMOOTH) { tool = MeshView.Tool.SMOOTH }
+                    ViewToggle(Icons.Rounded.AddCircle, tr("הבלט"), tool == MeshView.Tool.RAISE) { tool = MeshView.Tool.RAISE }
+                    ViewToggle(Icons.Rounded.RemoveCircle, tr("השקע"), tool == MeshView.Tool.SINK) { tool = MeshView.Tool.SINK }
+                    ViewToggle(Icons.Rounded.HorizontalRule, tr("יישר"), tool == MeshView.Tool.FLATTEN) { tool = MeshView.Tool.FLATTEN }
+                    ViewToggle(Icons.Rounded.ThreeSixty, tr("סובב"), tool == MeshView.Tool.ROTATE) { tool = MeshView.Tool.ROTATE }
+                }
                 Text(when (tool) {
-                    MeshView.Tool.ERASE -> tr("גע בחלק מיותר והוא נמחק. שתי אצבעות מזיזות ומקרבות את הדגם.")
-                    MeshView.Tool.SMOOTH -> tr("שפשף על בליטות וקוצים והם נבלעים במשטח, בלי להשאיר חור.")
-                    MeshView.Tool.ROTATE -> tr("גרור כדי לסובב את הדגם, ואז חזור למחיקה או להחלקה.")
-                }, color = C.Sub, fontSize = 13.sp)
+                    MeshView.Tool.ERASE -> tr("גע בחלק מיותר והוא נמחק, והחתך נסגר לבד.")
+                    MeshView.Tool.SMOOTH -> tr("שפשף על בליטות וקוצים והם נבלעים במשטח.")
+                    MeshView.Tool.RAISE -> tr("שפשף כדי להוסיף חומר: ממלא שקעים ומעבה חלקים דקים.")
+                    MeshView.Tool.SINK -> tr("שפשף כדי להוריד חומר: מנמיך בליטות ויוצר שקעים.")
+                    MeshView.Tool.FLATTEN -> tr("שפשף כדי ליישר אזור למשטח שטוח.")
+                    MeshView.Tool.ROTATE -> tr("גרור כדי לסובב את הדגם.")
+                } + " " + tr("נגיעה מחוץ לדגם מסובבת אותו, ושתי אצבעות מזיזות ומקרבות."), color = C.Sub, fontSize = 12.sp, lineHeight = 17.sp)
                 if (tool != MeshView.Tool.ROTATE) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(tr("גודל המברשת"), color = C.Text, fontSize = 13.sp)
+                        Text(tr("גודל"), color = C.Text, fontSize = 13.sp, modifier = Modifier.width(52.dp))
                         Slider(brush, { b ->
                             brush = b
                             ring = view?.let { androidx.compose.ui.geometry.Offset(it.width / 2f, it.height / 2f) }
-                        }, Modifier.weight(1f), valueRange = 15f..220f, onValueChangeFinished = { ring = null }, colors = sliderColors())
+                        }, Modifier.weight(1f).height(34.dp), valueRange = 15f..220f, onValueChangeFinished = { ring = null }, colors = sliderColors())
+                    }
+                    if (tool != MeshView.Tool.ERASE) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(tr("עוצמה"), color = C.Text, fontSize = 13.sp, modifier = Modifier.width(52.dp))
+                        Slider(strength, { strength = it }, Modifier.weight(1f).height(34.dp), valueRange = 0.1f..1f, colors = sliderColors())
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         for ((deep, label) in listOf(false to tr("רק מה שרואים"), true to tr("גם מה שמאחור"))) {
                             val on = through == deep
                             Text(label, color = if (on) Color.White else C.Sub, fontSize = 13.sp,
                                 modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) C.Violet else C.veil(0x14))
-                                    .pressable { through = deep }.padding(horizontal = 14.dp, vertical = 8.dp))
+                                    .pressable { through = deep }.padding(horizontal = 14.dp, vertical = 7.dp))
                         }
                     }
                 }
-                SoftButton(tr("הסר חתיכות מנותקות"), Modifier.fillMaxWidth(), Icons.Rounded.AutoFixHigh) {
-                    val n = editor.removeLoose()
-                    view?.refreshEdit()
-                    Actions.toast(ctx, if (n > 0) tr("הוסרו {0} חתיכות מנותקות", n) else tr("אין חתיכות מנותקות"))
+                // Whole-model helpers, one tap each.
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SoftButton(tr("הסר מנותקים"), Modifier.weight(1f), Icons.Rounded.AutoFixHigh) {
+                        val n = editor.removeLoose()
+                        view?.refreshEdit(); edits++
+                        Actions.toast(ctx, if (n > 0) tr("הוסרו {0} חתיכות מנותקות", n) else tr("אין חתיכות מנותקות"))
+                    }
+                    SoftButton(tr("החלק הכול"), Modifier.weight(1f), Icons.Rounded.Waves) {
+                        editor.smoothAll()
+                        view?.refreshEdit(); edits++
+                    }
                 }
             }
             return@Column
@@ -354,7 +391,7 @@ fun ResultScreen() {
                 1 -> {
                     if (project.group == "craft" && project.params.isNotEmpty())
                         SoftButton(tr("שנה מידות, טקסט ואפשרויות"), Modifier.fillMaxWidth(), Icons.Rounded.Tune) { AppState.editAgain(project) }
-            if (project.group != "craft") GradientButton(tr("ניקוי במגע: מחיקה והחלקה"), Modifier.fillMaxWidth(), Icons.Rounded.AutoFixHigh, enabled = !busy) {
+            if (project.group != "craft") GradientButton(tr("עריכה במגע: מחיקה, החלקה ועיצוב"), Modifier.fillMaxWidth(), Icons.Rounded.AutoFixHigh, enabled = !busy) {
                 showThin = false; rotate = false; wire = false
                 view?.let { v ->
                     v.setMesh(mesh)

@@ -35,13 +35,17 @@ class MeshView(context: Context) : GLSurfaceView(context) {
     private var lastMesh: Mesh? = null
 
     // ---- touch-up (see MeshEditor): one finger rubs, two fingers move and zoom
-    enum class Tool { ROTATE, ERASE, SMOOTH }
+    enum class Tool { ROTATE, ERASE, SMOOTH, RAISE, SINK, FLATTEN }
     var editor: MeshEditor? = null; private set
     var tool = Tool.ROTATE
     /** Brush radius in view pixels. */
     var brushPx = 60f
     /** Reach through the object instead of only the surface facing the camera. */
     var through = false
+    /** How hard the shaping tools press, 0..1. */
+    var strength = 0.5f
+    /** This touch began beside the model: it turns the camera, whatever the tool. */
+    private var beside = false
     /** Where the brush is, and whether it is down (for drawing the ring). */
     var onBrush: ((Float, Float, Boolean) -> Unit)? = null
     /** A stroke ended. */
@@ -94,51 +98,39 @@ class MeshView(context: Context) : GLSurfaceView(context) {
 
     private fun dab(e: MeshEditor, x: Float, y: Float) {
         renderer.cameraInto(camera)
-        val verts = e.pick(camera, width, height, x, y, brushPx, through)
-        if (tool == Tool.ERASE) e.erase(verts) else e.smooth(verts)
+        val p = e.pick(camera, width, height, x, y, brushPx, through)
+        when (tool) {
+            Tool.ERASE -> e.erase(p.verts)
+            Tool.SMOOTH -> e.smooth(p, strength)
+            Tool.RAISE -> e.push(p, 0.08f * strength)
+            Tool.SINK -> e.push(p, -0.08f * strength)
+            Tool.FLATTEN -> e.flatten(p, strength)
+            Tool.ROTATE -> {}
+        }
         stroked = true
         onBrush?.invoke(x, y, true)
-        push(e, tool == Tool.SMOOTH)
+        push(e, tool != Tool.ERASE)
     }
 
-    /** Handles a brush touch. False = not a brush gesture (two fingers), let the camera have it. */
+    /** Handles a brush touch. False = not a brush gesture (two fingers, or beside the model): the camera has it. */
     private fun brushTouch(e: MeshEditor, ev: MotionEvent): Boolean {
         when (ev.actionMasked) {
-            MotionEvent.ACTION_DOWN -> { multi = false; stroked = false }
+            MotionEvent.ACTION_DOWN -> {
+                multi = false; stroked = false
+                renderer.cameraInto(camera)
+                beside = e.pick(camera, width, height, ev.x, ev.y, minOf(brushPx, 28f), true).verts.isEmpty()
+            }
             MotionEvent.ACTION_POINTER_DOWN -> { multi = true; onBrush?.invoke(0f, 0f, false) }
-            MotionEvent.ACTION_MOVE -> if (!multi) dab(e, ev.x, ev.y)
+            MotionEvent.ACTION_MOVE -> if (!multi && !beside) dab(e, ev.x, ev.y)
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 // A tap without a move is one dab; a touch that became two fingers is none.
-                if (!multi && !stroked && ev.actionMasked == MotionEvent.ACTION_UP) dab(e, ev.x, ev.y)
+                if (!multi && !beside && !stroked && ev.actionMasked == MotionEvent.ACTION_UP) dab(e, ev.x, ev.y)
                 e.endStroke()
                 onBrush?.invoke(0f, 0f, false)
                 if (stroked) { refreshEdit(); onStroke?.invoke() }
             }
         }
-        return !multi
-    }
-
-    fun setMesh(mesh: Mesh?) {
-        if (mesh === lastMesh) return
-        lastMesh = mesh
-        queueEvent { renderer.upload(mesh) }
-        requestRender()
-    }
-
-    fun setOptions(colors: Boolean, wireframe: Boolean, lighting: Boolean, grid: Boolean, autoRotate: Boolean) {
-        renderer.colors = colors
-        renderer.wireframe = wireframe
-        renderer.lighting = lighting
-        renderer.grid = grid
-        renderer.autoRotate = autoRotate
-        renderMode = if (autoRotate) RENDERMODE_CONTINUOUSLY else RENDERMODE_WHEN_DIRTY
-        requestRender()
-    }
-
-    fun resetView() {
-        renderer.yaw = 30f; renderer.pitch = 15f; renderer.distance = 2.4f
-        renderer.panX = 0f; renderer.panY = 0f
-        requestRender()
+        return !multi && !beside
     }
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
