@@ -72,9 +72,13 @@ object Settings {
 
     fun resetAdvanced(ctx: Context) = prefs(ctx).edit().remove("smooth_strength").remove("density_threshold").remove("sg_steps").remove("sg_guidance_interval").apply()
 
-    /** Which model generates the shape; falls back to TripoSR when the chosen pack is missing. */
+    /**
+     * Which model generates the shape: the one chosen, else the stronger one (TripoSG) when it is
+     * installed, else TripoSR.
+     */
     fun generator(ctx: Context): Generator = prefs(ctx).getString("generator", null)
-        ?.let { runCatching { Generator.valueOf(it) }.getOrNull() }?.takeIf { it.ready(ctx) } ?: Generator.TRIPOSR
+        ?.let { runCatching { Generator.valueOf(it) }.getOrNull() }?.takeIf { it.ready(ctx) }
+        ?: Generator.TRIPOSG.takeIf { it.ready(ctx) } ?: Generator.TRIPOSR
     fun setGenerator(ctx: Context, g: Generator) = prefs(ctx).edit().putString("generator", g.name).apply()
 
     /** Advanced, TripoSG only: denoising steps. 10 is the normal mode (about 1.5 min on the int8
@@ -119,7 +123,7 @@ enum class Quality(val label: String, val resolution: Int, val hint: String) {
 enum class Generator(val label: String, val hint: String, val stages: List<Stage>) {
     TRIPOSR("TripoSR", tr("מהיר, עם צבעים וטקסטורה"),
         listOf(Stage.LOAD, Stage.SEGMENT, Stage.ENCODE, Stage.FIELD, Stage.SURFACE, Stage.COLOR, Stage.TEXTURE)),
-    TRIPOSG("TripoSG", tr("צורה מדויקת יותר, צבעים מהתמונה. ניסיוני, NPU בלבד"),
+    TRIPOSG("TripoSG", tr("צורה מדויקת יותר, צבעים מהתמונה. NPU בלבד"),
         listOf(Stage.SEGMENT, Stage.ENCODE, Stage.DENOISE, Stage.FIELD, Stage.SURFACE, Stage.COLOR));
 
     val pack: Pack get() = when (this) {

@@ -299,9 +299,9 @@ fun ModelsScreen() {
 @Composable
 fun GeneratorCards(options: List<Generator>, selected: Generator, onSelect: (Generator) -> Unit) {
     ChoiceCards(options, selected, { it.label }, onSelect,
-        subtitle = { when (it) { Generator.TRIPOSR -> tr("מהיר, עם צבעים"); Generator.TRIPOSG -> tr("צורה חדה ומדויקת") } },
+        subtitle = { when (it) { Generator.TRIPOSR -> tr("מהיר, עם צבעים"); Generator.TRIPOSG -> tr("צורה חדה ומדויקת, עם צבע") } },
         icon = { when (it) { Generator.TRIPOSR -> Icons.Rounded.Bolt; Generator.TRIPOSG -> Icons.Rounded.ViewInAr } },
-        badge = { if (it == Generator.TRIPOSG) tr("ניסיוני") else null })
+        badge = { if (it == Generator.TRIPOSG) tr("מומלץ") else null })
 }
 
 private val legalFiles get() = if (com.triposr.mobile.I18n.english)

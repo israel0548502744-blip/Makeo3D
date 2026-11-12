@@ -1,4 +1,7 @@
 {
+"מומלץ": "Recommended",
+"צורה חדה ומדויקת, עם צבע": "Sharp, accurate shape, with color",
+"צורה מדויקת יותר, צבעים מהתמונה. NPU בלבד": "A more accurate shape, colors from the picture. NPU only",
 "תוקן: {0} חתיכות מנותקות, {1} חורים, {2} קוצים. לחץ \"שמור שינויים בפרויקט\" כדי לשמור.": "Repaired: {0} loose pieces, {1} holes, {2} spikes. Tap \"Save changes to the project\" to keep it.",
 "תוקן: {0} חתיכות מנותקות, {1} חורים, {2} קוצים": "Repaired: {0} loose pieces, {1} holes, {2} spikes",
 "הדגם תקין, לא היה מה לתקן": "The model is fine, there was nothing to repair",

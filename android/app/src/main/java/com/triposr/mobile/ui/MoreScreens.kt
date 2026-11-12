@@ -137,7 +137,7 @@ fun ResultScreen() {
         LaunchedEffect(Unit) { AppState.back() }
         return
     }
-    var colors by remember { mutableStateOf(true) }
+    var colors by remember(project.id) { mutableStateOf(true) }
     var wire by remember { mutableStateOf(false) }
     var light by remember { mutableStateOf(true) }
     var grid by remember { mutableStateOf(true) }
