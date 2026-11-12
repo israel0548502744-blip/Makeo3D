@@ -438,7 +438,7 @@ object AppState {
         val t0 = System.nanoTime()
         val out = SgEngine(app).use { sg ->
             sg.generate(pv.cut!!, steps, seed = 0L, smoothIterations = if (smooth) Settings.smoothStrength(app) else 0,
-                guidanceInterval = Settings.sgGuidanceInterval(app), progress = stage, cancelled = { cancelRequested })
+                guidanceInterval = Settings.sgGuidanceInterval(app), texture = Settings.bakeTexture(app), progress = stage, cancelled = { cancelRequested })
         }
         val timings = LinkedHashMap<String, Double>()
         timings[Stage.SEGMENT.name] = segSeconds

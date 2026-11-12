@@ -124,7 +124,7 @@ enum class Generator(val label: String, val hint: String, val stages: List<Stage
     TRIPOSR("TripoSR", tr("מהיר, עם צבעים וטקסטורה"),
         listOf(Stage.LOAD, Stage.SEGMENT, Stage.ENCODE, Stage.FIELD, Stage.SURFACE, Stage.COLOR, Stage.TEXTURE)),
     TRIPOSG("TripoSG", tr("צורה מדויקת יותר, צבעים מהתמונה. NPU בלבד"),
-        listOf(Stage.SEGMENT, Stage.ENCODE, Stage.DENOISE, Stage.FIELD, Stage.SURFACE, Stage.COLOR));
+        listOf(Stage.SEGMENT, Stage.ENCODE, Stage.DENOISE, Stage.FIELD, Stage.SURFACE, Stage.COLOR, Stage.TEXTURE));
 
     val pack: Pack get() = when (this) {
         TRIPOSR -> ModelStore.MAIN

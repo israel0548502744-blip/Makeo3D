@@ -28,7 +28,7 @@ jobs:
           gradle-version: "8.14.3"
 
       - name: Make and check every product
-        run: gradle -p android :app:testGithubDebugUnitTest --tests '*CraftsQaTest*' --tests '*MeshEditTest*' --tests '*SculptTest*' --no-daemon
+        run: gradle -p android :app:testGithubDebugUnitTest --tests '*CraftsQaTest*' --tests '*MeshEditTest*' --tests '*SculptTest*' --tests '*MeshColorTest*' --no-daemon
 
       - name: Show test failures
         if: failure()

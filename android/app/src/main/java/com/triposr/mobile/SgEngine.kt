@@ -223,7 +223,7 @@ class SgEngine(private val context: Context) : AutoCloseable {
 
     // ------------------------------------------------------------------ pipeline
 
-    fun generate(cut: Bitmap, steps: Int, seed: Long, smoothIterations: Int, guidanceInterval: Boolean = false, progress: (Stage, Float) -> Unit,
+    fun generate(cut: Bitmap, steps: Int, seed: Long, smoothIterations: Int, guidanceInterval: Boolean = false, texture: Boolean = true, progress: (Stage, Float) -> Unit,
                  cancelled: () -> Boolean): TripoEngine.Output {
         val c = config
         val timings = LinkedHashMap<Stage, Double>()
@@ -258,14 +258,21 @@ class SgEngine(private val context: Context) : AutoCloseable {
         var mesh = timed(Stage.SURFACE) { SurfaceNets.extract(field, res + 1, c.bounds) }
         if (mesh.vertexCount == 0) throw IllegalStateException(tr("TripoSG לא מצא צורה. נסה תמונה אחרת."))
         CrashLog.log("TripoSG surface: ${mesh.vertexCount} vertices, ${mesh.triangleCount} triangles")
+        var projection: MeshColor.Projection? = null
         mesh = timed(Stage.COLOR) {
             var m = if (smoothIterations > 0) MeshTools.smooth(mesh, smoothIterations) else mesh
             // Above ~600k triangles the viewer and the print check run out of Java heap.
             if (m.triangleCount > MAX_TRIANGLES) m = MeshTools.simplify(m, 1f - MAX_TRIANGLES.toFloat() / m.triangleCount)
-            m.colors = runCatching { MeshColor.paint(m, cut) }
+            m.colors = runCatching { MeshColor.project(m, cut).also { projection = it }.let { MeshColor.paint(m, it) } }
                 .onFailure { CrashLog.error("TripoSG colors", it) }
                 .getOrElse { FloatArray(m.positions.size) { 0.82f } }
             m
+        }
+        // Sharp colors: a texture sampled from the full-size picture.
+        val proj = projection
+        if (texture && proj != null) mesh = timed(Stage.TEXTURE) {
+            runCatching { MeshColor.bake(mesh, proj) }.onFailure { CrashLog.error("TripoSG texture", it) }.getOrNull()
+                ?: mesh.also { CrashLog.log("TripoSG texture skipped: mesh too dense") }
         }
         return TripoEngine.Output(mesh, timings)
     }

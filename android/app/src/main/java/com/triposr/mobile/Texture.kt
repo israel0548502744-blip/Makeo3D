@@ -97,6 +97,32 @@ class TextureAtlas private constructor(
 ) {
     val cellCount get() = corners.size / 4
     val texelCount get() = cellCount * cell * cell
+    /** Texels along a cell's side (two of them are margin). */
+    val cellSize get() = cell
+
+    /**
+     * Texel number [i] as a blend of three vertices: their ids into [ids] and weights into [w].
+     * Returns the pixel index it fills. Same texels and order as [texel].
+     */
+    fun texelAt(i: Int, ids: IntArray, w: FloatArray): Int {
+        val per = cell * cell
+        val c = i / per; val local = i % per
+        val tx = local % cell; val ty = local / cell
+        val span = (cell - 2).toFloat()
+        var a = ((tx + 0.5f - 1f) / span).coerceIn(0f, 1f)
+        var b = ((ty + 0.5f - 1f) / span).coerceIn(0f, 1f)
+        val p = corners[c * 4]; val q = corners[c * 4 + 1]; val r = corners[c * 4 + 2]; val u = corners[c * 4 + 3]
+        if (a + b <= 1f || u < 0) {
+            if (a + b > 1f) { val s = a + b; a /= s; b /= s }
+            ids[0] = p; ids[1] = q; ids[2] = r
+            w[0] = 1f - a - b; w[1] = a; w[2] = b
+        } else {
+            ids[0] = u; ids[1] = r; ids[2] = q
+            w[0] = a + b - 1f; w[1] = 1f - a; w[2] = 1f - b
+        }
+        val x0 = c % grid * cell; val y0 = c / grid * cell
+        return (y0 + ty) * size + x0 + tx
+    }
 
     /** Model-space point for texel number [i] (cell-major order). Returns the pixel index it fills. */
     fun texel(i: Int, positions: FloatArray, out: FloatArray): Int {
@@ -195,7 +221,12 @@ class TexturedArrays(val positions: FloatArray, val normals: FloatArray, val uvs
 fun Mesh.texturedArrays(): TexturedArrays? {
     val uv = uvs ?: return null
     texture ?: return null
-    val map = HashMap<Long, Int>(indices.size)
+    // An open-addressing table of (vertex, uv) -> new index: a boxed HashMap of a dense model's
+    // ~2 million corners alone took over 100 MB of the app's memory.
+    var cap = 16
+    while (cap < indices.size * 2) cap = cap shl 1
+    val keys = LongArray(cap) { -1L }; val vals = IntArray(cap)
+    var count = 0
     val pos = FloatList(); val nor = FloatList(); val tex = FloatList()
     val out = IntArray(indices.size)
     for (i in indices.indices) {
@@ -203,11 +234,14 @@ fun Mesh.texturedArrays(): TexturedArrays? {
         val qu = (uv[i * 2] * 16384f).roundToInt().toLong()
         val qv = (uv[i * 2 + 1] * 16384f).roundToInt().toLong()
         val key = (v.toLong() shl 30) or (qu shl 15) or qv
-        out[i] = map.getOrPut(key) {
+        var h = ((key * -0x61c8864680b583ebL) ushr 20).toInt() and (cap - 1)
+        while (keys[h] != -1L && keys[h] != key) h = (h + 1) and (cap - 1)
+        if (keys[h] == -1L) {
+            keys[h] = key; vals[h] = count++
             for (k in 0..2) { pos.add(positions[v * 3 + k]); nor.add(normals[v * 3 + k]) }
             tex.add(uv[i * 2]); tex.add(uv[i * 2 + 1])
-            map.size
         }
+        out[i] = vals[h]
     }
     return TexturedArrays(pos.toArray(), nor.toArray(), tex.toArray(), out)
 }
