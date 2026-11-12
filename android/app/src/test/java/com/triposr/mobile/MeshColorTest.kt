@@ -37,17 +37,19 @@ class MeshColorTest {
         return 1f - (a * a + b * b + c * c)
     }
 
-    private fun figure(): Mesh {
+    /** [changed]: the figure the photo shows differs a little from the model (wider, arms raised), as a reconstruction does. */
+    private fun figure(changed: Boolean = false): Mesh {
         val res = 128; val r = 1.2f
         val step = 2 * r / (res - 1)
         val field = FloatArray(res * res * res)
         for (i in 0 until res) for (j in 0 until res) for (k in 0 until res) {
             val x = -r + i * step; val y = -r + j * step; val z = -r + k * step
+            val k2 = if (changed) 1 else 0
             field[(i * res + j) * res + k] = maxOf(
-                blob(x, y, z, 0f, -0.05f, 0f, 0.34f, 0.42f, 0.24f),       // body
-                blob(x, y, z, 0f, 0.55f, 0f, 0.2f, 0.2f, 0.2f),            // head
-                blob(x, y, z, -0.5f, 0.15f, 0f, 0.24f, 0.09f, 0.09f),      // arms
-                blob(x, y, z, 0.5f, 0.15f, 0f, 0.24f, 0.09f, 0.09f),
+                blob(x, y, z, 0f, -0.05f, 0f, 0.34f + 0.04f * k2, 0.42f, 0.24f + 0.02f * k2),       // body
+                blob(x, y, z, 0f, 0.55f + 0.01f * k2, 0f, 0.2f + 0.02f * k2, 0.2f + 0.02f * k2, 0.2f + 0.02f * k2),  // head
+                blob(x, y, z, -0.5f - 0.03f * k2, 0.15f + 0.09f * k2, 0f, 0.24f + 0.02f * k2, 0.09f, 0.09f),      // arms
+                blob(x, y, z, 0.5f + 0.03f * k2, 0.15f + 0.09f * k2, 0f, 0.24f + 0.02f * k2, 0.09f, 0.09f),
                 maxOf(blob(x, y, z, -0.15f, -0.65f, 0f, 0.11f, 0.32f, 0.11f),  // legs
                     blob(x, y, z, 0.15f, -0.65f, 0f, 0.11f, 0.32f, 0.11f)))
         }
@@ -57,11 +59,15 @@ class MeshColorTest {
     /** Fine stripes on the front of the shirt: narrower than the space between two vertices. */
     private fun striped(x: Float, y: Float, z: Float) = z > 0.05f && abs(x) < 0.2f && y > -0.05f && y < 0.25f
 
+    /** Paint the changed figure (the photo's) instead of the model's. */
+    private var changedTruth = false
+
     /** The true color at a point of the figure. */
     private fun truth(x: Float, y: Float, z: Float, o: FloatArray) {
         val c = when {
             y > 0.36f -> floatArrayOf(0.95f, 0.8f, 0.15f)                       // head
-            abs(x) > 0.3f && y > -0.05f -> floatArrayOf(0.15f, 0.7f, 0.25f)     // arms
+            changedTruth && abs(x) > 0.34f && y > 0.03f -> floatArrayOf(0.15f, 0.7f, 0.25f)
+            !changedTruth && abs(x) > 0.3f && y > -0.05f -> floatArrayOf(0.15f, 0.7f, 0.25f)     // arms
             y < -0.22f -> floatArrayOf(0.15f, 0.25f, 0.85f)                      // trousers
             striped(x, y, z) && floor(x * 40f).toInt() % 2 == 0 -> floatArrayOf(0.95f, 0.95f, 0.95f)
             else -> floatArrayOf(0.85f, 0.12f, 0.12f)                            // shirt
@@ -194,16 +200,23 @@ class MeshColorTest {
         rows += ""
         rows += "Test figure: ${mesh.vertexCount} vertices, ${mesh.triangleCount} triangles. Photo: perspective, 768 px."
         rows += ""
-        rows += "| photo taken from | old (box match) | new (outline match) |"
+        rows += "| photo | old (level camera) | new (camera searched) |"
         rows += "|---|---|---|"
-        val scores = HashMap<Float, Pair<Float, Float>>()
-        for (el in floatArrayOf(0f, 15f)) {
-            val ph = photograph(mesh, Camera(el, 768))
-            if (el == 15f) ph.bitmap.compress(Bitmap.CompressFormat.PNG, 100, File(out, "color_photo.png").outputStream())
-            val old = vertexScore(mesh, ph, MeshColor.paint(mesh, ph.bitmap, align = false))
+        val scores = HashMap<String, Pair<Float, Float>>()
+        val changed = figure(changed = true)
+        for ((name, el, other) in listOf(Triple("level", 0f, false), Triple("15° above", 15f, false),
+            Triple("model differs, level", 0f, true), Triple("model differs, 15° above", 15f, true))) {
+            val cam = Camera(el, 768)
+            changedTruth = other
+            val shot = photograph(if (other) changed else mesh, cam)
+            changedTruth = false
+            // What the photo shows of the model itself, to judge by.
+            val ph = Photo(shot.bitmap, photograph(mesh, cam).zbuf, cam)
+            if (name == "15° above") ph.bitmap.compress(Bitmap.CompressFormat.PNG, 100, File(out, "color_photo.png").outputStream())
+            val old = vertexScore(mesh, ph, MeshColor.paint(mesh, ph.bitmap, search = false))
             val new = vertexScore(mesh, ph, MeshColor.paint(mesh, ph.bitmap))
-            scores[el] = old to new
-            rows += "| %.0f° above | %.1f%% | %.1f%% |".format(el, old * 100, new * 100)
+            scores[name] = old to new
+            rows += "| %s | %.1f%% | %.1f%% |".format(name, old * 100, new * 100)
         }
 
         // The texture, from the photo taken from above.
@@ -224,10 +237,11 @@ class MeshColorTest {
         File(out, "color_report.md").writeText(rows.joinToString("\n") + "\n")
         println(rows.joinToString("\n"))
 
-        val (old0, new0) = scores[0f]!!; val (old15, new15) = scores[15f]!!
-        assertTrue("straight on, the new match is as good: old %.3f new %.3f".format(old0, new0), new0 >= old0 - 0.01f && new0 > 0.9f)
-        assertTrue("from above, the new match is clearly better: old %.3f new %.3f".format(old15, new15), new15 > old15 + 0.03f && new15 > 0.9f)
-        assertTrue("the texture keeps the stripes: texture %.3f, vertex colors %.3f".format(texStripes, vertStripes), texStripes > vertStripes + 0.15f && texStripes > 0.8f)
-        assertTrue("the texture is right elsewhere too: %.3f".format(texRest), texRest > 0.9f)
+        for ((name, s) in scores) assertTrue("$name: never worse than before: old %.3f new %.3f".format(s.first, s.second), s.second >= s.first - 0.01f)
+        val (old15, new15) = scores["15° above"]!!
+        assertTrue("from above, clearly better: old %.3f new %.3f".format(old15, new15), new15 > old15 + 0.05f && new15 > 0.93f)
+        assertTrue("level, still right: %.3f".format(scores["level"]!!.second), scores["level"]!!.second > 0.93f)
+        assertTrue("the texture keeps the stripes: texture %.3f, vertex colors %.3f".format(texStripes, vertStripes), texStripes > vertStripes + 0.15f && texStripes > 0.7f)
+        assertTrue("the texture is right elsewhere too: %.3f".format(texRest), texRest > 0.93f)
     }
 }

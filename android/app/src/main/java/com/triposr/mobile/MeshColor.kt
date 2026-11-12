@@ -11,15 +11,15 @@ import kotlin.math.sqrt
 /**
  * Paints a shape-only mesh (TripoSG) with the colors of the picture it was made from.
  *
- * 1. Which side the picture shows. The model does not keep the camera's direction (a mug, a
- *    house and a figure face +Z, a dinosaur in profile faces +X), so the camera is searched:
- *    12 directions around the up axis, then finer steps and a camera a little above or below,
- *    keeping the one whose outline overlaps the picture's outline best.
- * 2. Where each point lands in the picture. The two outlines are first matched by their boxes,
- *    then the picture is bent to fit the model's outline exactly (a smooth displacement field
- *    found by matching the outlines, "demons" registration). A perspective photo, a slightly
- *    different pose or proportions no longer shift colors onto the wrong part (shirt green on
- *    the trousers).
+ * 1. Which camera took the picture. The model does not keep the camera's direction (a mug, a
+ *    house and a figure face +Z, a dinosaur in profile faces +X), so it is searched: 12 directions
+ *    around the up axis, then finer steps, a camera level or a little above, and how close it was
+ *    (a phone close to the object sees its near parts bigger). The camera whose view of the model
+ *    overlaps the picture's outline best wins. A camera from below is not tried: its outline is
+ *    nearly the same as one from above, and guessing wrong colored the model worse than a level
+ *    camera does (measured, MeshColorTest and convert/ lab notes in HANDOFF).
+ * 2. Where each point lands in the picture: through that camera, the model's outline box laid
+ *    on the picture's outline box, pixels blended.
  * 3. What is trusted. Only surface the camera sees face-on takes a pixel; the back, the sides
  *    seen edge-on and what hides under the arms take the color of the trusted surface next to
  *    them (or of an optional back picture).
@@ -109,15 +109,24 @@ object MeshColor {
 
     // ------------------------------------------------------------------ the camera
 
-    /** An orthographic camera at azimuth [az] (degrees from +Z toward +X) and elevation [el] (degrees, + = from above). */
-    class Cam(val az: Float, val el: Float) {
+    /**
+     * A camera at azimuth [az] (degrees from +Z toward +X) and elevation [el] (degrees, + = from
+     * above), [dist] model units from the middle; 0 = far away (no perspective).
+     */
+    class Cam(val az: Float, val el: Float, val dist: Float = 0f) {
         private val sa = sin(Math.toRadians(az.toDouble())).toFloat(); private val ca = cos(Math.toRadians(az.toDouble())).toFloat()
         private val se = sin(Math.toRadians(el.toDouble())).toFloat(); private val ce = cos(Math.toRadians(el.toDouble())).toFloat()
         /** Toward the camera. */
         val dir = floatArrayOf(sa * ce, se, ca * ce)
-        fun u(x: Float, z: Float) = ca * x - sa * z
-        fun v(x: Float, y: Float, z: Float) = -(y * ce - (sa * x + ca * z) * se)
         fun d(x: Float, y: Float, z: Float) = (sa * x + ca * z) * ce + y * se
+        /** Screen position (u right, v down) into out[0], out[1]. */
+        fun uv(x: Float, y: Float, z: Float, out: FloatArray) {
+            val f = sa * x + ca * z
+            var u = ca * x - sa * z; var v = -(y * ce - f * se)
+            if (dist > 0f) { val k = dist / max(dist - (f * ce + y * se), 1e-3f); u *= k; v *= k }
+            out[0] = u; out[1] = v
+        }
+        override fun toString() = "%.1f° around, %.0f° up, %s".format(az, el, if (dist > 0f) "%.1f away".format(dist) else "far")
     }
 
     /** The mesh seen by [cam]: u, v in 0..1 over its box (v down) and depth toward the camera. */
@@ -127,12 +136,14 @@ object MeshColor {
         var minU = Float.MAX_VALUE; var spanU = 1f; var minV = Float.MAX_VALUE; var spanV = 1f
         var minD = Float.MAX_VALUE; var maxD = -Float.MAX_VALUE
 
+        private val t = FloatArray(2)
+
         init {
             val p = mesh.positions
             var maxU = -Float.MAX_VALUE; var maxV = -Float.MAX_VALUE
             for (i in 0 until n) {
                 val x = p[i * 3]; val y = p[i * 3 + 1]; val z = p[i * 3 + 2]
-                su[i] = cam.u(x, z); sv[i] = cam.v(x, y, z); depth[i] = cam.d(x, y, z)
+                cam.uv(x, y, z, t); su[i] = t[0]; sv[i] = t[1]; depth[i] = cam.d(x, y, z)
                 minU = min(minU, su[i]); maxU = max(maxU, su[i]); minV = min(minV, sv[i]); maxV = max(maxV, sv[i])
                 minD = min(minD, depth[i]); maxD = max(maxD, depth[i])
             }
@@ -140,8 +151,10 @@ object MeshColor {
             for (i in 0 until n) { su[i] = (su[i] - minU) / spanU; sv[i] = (sv[i] - minV) / spanV }
         }
 
-        fun u(x: Float, z: Float) = (cam.u(x, z) - minU) / spanU
-        fun v(x: Float, y: Float, z: Float) = (cam.v(x, y, z) - minV) / spanV
+        /** u, v in 0..1 over the box, into out[0], out[1] (not thread-safe: one frame per thread). */
+        fun uv(x: Float, y: Float, z: Float, out: FloatArray) {
+            cam.uv(x, y, z, out); out[0] = (out[0] - minU) / spanU; out[1] = (out[1] - minV) / spanV
+        }
 
         /** The outline on a g x g grid (cell centres), from the vertices: cheap, for the search. */
         fun outline(g: Int): BooleanArray {
@@ -198,82 +211,12 @@ object MeshColor {
         return inter.toFloat() / union.coerceAtLeast(1)
     }
 
-    // ------------------------------------------------------------------ bending the picture
-
-    /**
-     * Displacement (in grid cells) that carries the model's outline onto the picture's, found
-     * by "demons" registration on the two blurred outlines and kept smooth.
-     */
-    class Warp(model: BooleanArray, picture: BooleanArray, private val g: Int) {
-        private val dx = FloatArray(g * g)
-        private val dy = FloatArray(g * g)
-
-        init {
-            val m = blur(FloatArray(g * g) { if (model[it]) 1f else 0f }, 1)
-            val p = blur(FloatArray(g * g) { if (picture[it]) 1f else 0f }, 1)
-            val limit = g * 0.15f
-            repeat(80) {
-                for (y in 0 until g) for (x in 0 until g) {
-                    val i = y * g + x
-                    val fx = x + dx[i]; val fy = y + dy[i]
-                    val pw = at(p, fx, fy)
-                    val diff = pw - m[i]
-                    if (diff == 0f) continue
-                    val gx = (at(p, fx + 1, fy) - at(p, fx - 1, fy)) / 2
-                    val gy = (at(p, fx, fy + 1) - at(p, fx, fy - 1)) / 2
-                    val den = gx * gx + gy * gy + diff * diff
-                    if (den < 1e-6f) continue
-                    dx[i] -= diff * gx / den; dy[i] -= diff * gy / den
-                }
-                val sx = blur(dx, 2); val sy = blur(dy, 2)
-                for (i in dx.indices) {
-                    dx[i] = sx[i].coerceIn(-limit, limit); dy[i] = sy[i].coerceIn(-limit, limit)
-                }
-            }
-        }
-
-        /** Where the model point at (u, v), 0..1 over the model's box, falls in the picture's box. */
-        fun map(u: Float, v: Float, out: FloatArray) {
-            val x = u * g - 0.5f; val y = v * g - 0.5f
-            out[0] = (x + at(dx, x, y) + 0.5f) / g
-            out[1] = (y + at(dy, x, y) + 0.5f) / g
-        }
-
-        private fun at(a: FloatArray, x: Float, y: Float): Float {
-            val cx = x.coerceIn(0f, g - 1f); val cy = y.coerceIn(0f, g - 1f)
-            val ix = min(cx.toInt(), g - 2); val iy = min(cy.toInt(), g - 2)
-            val fx = cx - ix; val fy = cy - iy
-            val i = iy * g + ix
-            val top = a[i] + fx * (a[i + 1] - a[i]); val bot = a[i + g] + fx * (a[i + g + 1] - a[i + g])
-            return top + fy * (bot - top)
-        }
-
-        private fun blur(a: FloatArray, r: Int): FloatArray {
-            // Separable binomial blur, radius r passes of [1 2 1] / 4 (edges clamp).
-            var cur = a
-            repeat(r) {
-                val h = FloatArray(cur.size)
-                for (y in 0 until g) for (x in 0 until g) {
-                    val l = cur[y * g + max(x - 1, 0)]; val c = cur[y * g + x]; val rr = cur[y * g + min(x + 1, g - 1)]
-                    h[y * g + x] = (l + 2 * c + rr) / 4
-                }
-                val v = FloatArray(cur.size)
-                for (y in 0 until g) for (x in 0 until g) {
-                    val t = h[max(y - 1, 0) * g + x]; val c = h[y * g + x]; val b = h[min(y + 1, g - 1) * g + x]
-                    v[y * g + x] = (t + 2 * c + b) / 4
-                }
-                cur = v
-            }
-            return cur
-        }
-    }
-
     // ------------------------------------------------------------------ putting it together
 
     /** Where the picture lands on the mesh: the camera, the bending and what the camera sees. */
     class Projection internal constructor(
         private val mesh: Mesh, val picture: Picture, private val back: Picture?,
-        private val frame: Frame, private val warp: Warp?, private val zbuf: FloatArray,
+        private val frame: Frame, private val zbuf: FloatArray,
     ) {
         val cam get() = frame.cam
         private val eps = (frame.maxD - frame.minD) * 0.01f
@@ -283,7 +226,8 @@ object MeshColor {
         fun sees(x: Float, y: Float, z: Float, nx: Float, ny: Float, nz: Float): Boolean {
             val d = cam.dir
             if (nx * d[0] + ny * d[1] + nz * d[2] <= FACING) return false
-            val cx = (frame.u(x, z) * Z).toInt(); val cy = (frame.v(x, y, z) * Z).toInt()
+            frame.uv(x, y, z, m)
+            val cx = (m[0] * Z).toInt(); val cy = (m[1] * Z).toInt()
             var near = -Float.MAX_VALUE
             for (oy in -1..1) for (ox in -1..1) {
                 val px = cx + ox; val py = cy + oy
@@ -294,62 +238,75 @@ object MeshColor {
 
         /** Whether the point is behind (hidden from the camera), for the back picture. */
         private fun hidden(x: Float, y: Float, z: Float): Boolean {
-            val cx = (frame.u(x, z) * Z).toInt().coerceIn(0, Z - 1); val cy = (frame.v(x, y, z) * Z).toInt().coerceIn(0, Z - 1)
+            frame.uv(x, y, z, m)
+            val cx = (m[0] * Z).toInt().coerceIn(0, Z - 1); val cy = (m[1] * Z).toInt().coerceIn(0, Z - 1)
             return cam.d(x, y, z) < zbuf[cy * Z + cx] - eps
         }
 
         /** The picture's color at the point, into out[at..at+2]. */
         fun sample(x: Float, y: Float, z: Float, out: FloatArray, at: Int) {
-            val u = frame.u(x, z); val v = frame.v(x, y, z)
-            if (warp != null) { warp.map(u, v, m); picture.sample(m[0], m[1], out, at) } else picture.sample(u, v, out, at)
+            frame.uv(x, y, z, m)
+            picture.sample(m[0], m[1], out, at)
         }
 
         /** The back picture's color for a hidden point (mirrored), or false when there is none. */
         fun sampleBack(x: Float, y: Float, z: Float, out: FloatArray, at: Int): Boolean {
             val b = back ?: return false
             if (!hidden(x, y, z)) return false
-            b.sample(1f - frame.u(x, z), frame.v(x, y, z), out, at)
+            frame.uv(x, y, z, m)
+            b.sample(1f - m[0], m[1], out, at)
             return true
         }
     }
 
     /**
-     * Finds the camera and the bending for [mesh] seen in [front]. [align] false keeps the
-     * plain box match (no bending), as before.
+     * Finds the camera for [mesh] seen in [front]. [search] false keeps a level, far camera (only
+     * the direction around the up axis is searched), as before.
      */
-    fun project(mesh: Mesh, front: Bitmap, back: Bitmap? = null, align: Boolean = true): Projection {
+    fun project(mesh: Mesh, front: Bitmap, back: Bitmap? = null, search: Boolean = true): Projection {
         val pic = Picture(front)
         val target = pic.outline(G)
-        fun score(c: Cam) = iou(Frame(mesh, c).outline(G), target)
-        // Around the up axis first, then finer, and from a little above or below.
-        val coarse = FloatArray(VIEWS) { k -> score(Cam(k * 360f / VIEWS, 0f)) }
-        var bestAz = 0f; var bestEl = 0f; var best = coarse[0]
-        for (k in 1 until VIEWS) if (coarse[k] > best) { best = coarse[k]; bestAz = k * 360f / VIEWS }
-        var front0 = coarse[0]; var front0El = 0f
-        if (align) {
-            val baseAz = bestAz
-            for (daz in floatArrayOf(-15f, -7.5f, 0f, 7.5f, 15f)) for (el in floatArrayOf(-20f, -10f, 0f, 10f, 20f)) {
-                if (daz == 0f && el == 0f) continue
-                val s = score(Cam(baseAz + daz, el))
-                if (s > best) { best = s; bestAz = baseAz + daz; bestEl = el }
-                if (baseAz + daz == 0f && s > front0) { front0 = s; front0El = el }
-            }
-            if (baseAz != 0f) for (el in floatArrayOf(-20f, -10f, 10f, 20f)) {
-                val s = score(Cam(0f, el))
-                if (s > front0) { front0 = s; front0El = el }
+        // The outline needs only part of a dense mesh's vertices.
+        val step = (mesh.vertexCount / 60_000).coerceAtLeast(1)
+        val few = if (step == 1) mesh else Mesh(FloatArray(mesh.vertexCount / step * 3) { mesh.positions[(it / 3) * step * 3 + it % 3] },
+            FloatArray(0), FloatArray(0), IntArray(0))
+        val scores = HashMap<Triple<Float, Float, Float>, Float>()
+        fun score(c: Cam) = scores.getOrPut(Triple(c.az, c.el, c.dist)) { iou(Frame(few, c).outline(G), target) }
+        // A level, far camera wins unless another one matches clearly better.
+        fun worth(c: Cam) = score(c) - if (c.el == 0f && c.dist == 0f) 0f else 0.01f
+
+        var best = Cam(0f, 0f)
+        for (k in 1 until VIEWS) { val c = Cam(k * 360f / VIEWS, 0f); if (score(c) > score(best)) best = c }
+        if (search) {
+            val around = setOf(best.az, 0f)
+            for (az0 in around) for (daz in floatArrayOf(-15f, -7.5f, 0f, 7.5f, 15f))
+                for (el in floatArrayOf(0f, 10f, 20f, 30f)) for (d in floatArrayOf(0f, 8f, 5f, 3.5f, 2.5f)) {
+                    val c = Cam(az0 + daz, el, d)
+                    if (worth(c) > worth(best)) best = c
+                }
+            // Finer, around the best.
+            val b0 = best
+            for (daz in floatArrayOf(-5f, 0f, 5f)) for (del in floatArrayOf(-5f, 0f, 5f)) for (f in floatArrayOf(0.8f, 1f, 1.25f)) {
+                val el = b0.el + del
+                if (el < 0f) continue
+                val c = Cam(b0.az + daz, el, b0.dist * f)
+                if (worth(c) > worth(best)) best = c
             }
         }
-        if (front0 >= best - KEEP_FRONT) { bestAz = 0f; bestEl = front0El; best = front0 }
-        val frame = Frame(mesh, Cam(bestAz, bestEl))
-        val warp = if (align) Warp(frame.outline(G), target, G) else null
-        CrashLog.log("Mesh colors: camera at %.1f° around, %.0f° up, outline match %.2f (front %.2f), bending ${if (warp != null) "on" else "off"}"
-            .format(bestAz, bestEl, best, front0))
-        return Projection(mesh, pic, back?.let { Picture(it) }, frame, warp, frame.zbuffer(mesh, Z))
+        // +Z (the usual side) wins unless another direction matches clearly better: a front and a
+        // back outline are mirror images, so near-symmetric objects can't tell them apart.
+        val front0 = scores.entries.filter { it.key.first == 0f }.maxByOrNull { it.value - if (it.key.second == 0f && it.key.third == 0f) 0f else 0.01f }
+        if (best.az != 0f && front0 != null && front0.value >= score(best) - KEEP_FRONT)
+            best = Cam(0f, front0.key.second, front0.key.third)
+        val frame = Frame(mesh, best)
+        CrashLog.log("Mesh colors: camera $best, outline match %.3f (level front %.3f), ${scores.size} cameras tried"
+            .format(score(best), score(Cam(0f, 0f))))
+        return Projection(mesh, pic, back?.let { Picture(it) }, frame, frame.zbuffer(mesh, Z))
     }
 
     /** Per-vertex RGB (0..1) for [mesh]; [back] is an optional picture of the other side. */
-    fun paint(mesh: Mesh, front: Bitmap, back: Bitmap? = null, align: Boolean = true): FloatArray =
-        paint(mesh, project(mesh, front, back, align))
+    fun paint(mesh: Mesh, front: Bitmap, back: Bitmap? = null, search: Boolean = true): FloatArray =
+        paint(mesh, project(mesh, front, back, search))
 
     fun paint(mesh: Mesh, proj: Projection): FloatArray {
         val n = mesh.vertexCount
