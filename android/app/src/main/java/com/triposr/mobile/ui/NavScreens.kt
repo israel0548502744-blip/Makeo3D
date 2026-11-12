@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.BugReport
@@ -80,6 +81,10 @@ object Catalog {
 
     val photo3d = Entry("PHOTO3D", Icons.Rounded.ViewInAr, { tr("תמונה לתלת־ממד") }, { tr("מודל מלא מכל זווית, מתמונה אחת") }) { AppState.startNew() }
 
+    val sculpt = Entry("SCULPT", Icons.Rounded.Edit, { tr("ציור ופיסול") }, { tr("מצורה או מציור באצבע, ומעצבים במגע") }) {
+        AppState.navigate(Screen.Sculpt)
+    }
+
     private val siliconeMaster = Entry("MOLD_MASTER", Icons.Rounded.Science, { tr("תבנית־אם לסיליקון") },
         { tr("יוצקים סיליקון ומקבלים תבנית גמישה") }) {
         AppState.draft = AppState.Draft(Kind.MOLD, "", Creations.Options(sizeMm = 80f, reliefMm = 12f, moldMaster = true), null)
@@ -99,7 +104,7 @@ object Catalog {
         Category.HOME -> listOf(Kind.STAND, Kind.FRAME, Kind.BOX).map { of(it) }
     }
 
-    fun all(): List<Entry> = listOf(photo3d) + Category.entries.flatMap { entries(it) }
+    fun all(): List<Entry> = listOf(photo3d, sculpt) + Category.entries.flatMap { entries(it) }
 
     fun find(id: String): Entry? = all().firstOrNull { it.id == id }
 
@@ -208,6 +213,7 @@ fun MakeScreen() {
             if (query.isNotBlank()) SearchResults(query)
             else {
                 PhotoHero()
+                EntryRow(Catalog.sculpt, 1)
                 for (c in Category.entries) CategoryRow(c)
             }
             Spacer(Modifier.height(12.dp))

@@ -167,10 +167,13 @@ object Creations {
             Kind.BOX -> Crafts.box(text, o)
         }
 
+    /** A shape to sculpt (see [Sculpt]); it opens straight in touch editing. */
+    fun sculpt(label: String, make: () -> Pair<Mesh, Bitmap>) = build(label, "SCULPT", null, "", edit = true, make = make)
+
     /** Two-half casting mold of a finished 3D model. */
     fun moldOf(mesh: Mesh) = build(tr("תבנית משני חצאים"), "MOLD2", null, "") { Crafts.twoPartMold(mesh) }
 
-    private fun build(label: String, kindName: String, image: Bitmap?, params: String, make: () -> Pair<Mesh, Bitmap>) {
+    private fun build(label: String, kindName: String, image: Bitmap?, params: String, edit: Boolean = false, make: () -> Pair<Mesh, Bitmap>) {
         if (busy != null) return
         busy = tr("יוצר {0}…", label); error = null
         AppState.scope.launch {
@@ -184,7 +187,7 @@ object Creations {
                     source = image, kind = kindName, params = params)
                 AppState.used(kindName)
                 CrashLog.log("Created $kindName in %.1fs: ${mesh.triangleCount} triangles".format(seconds))
-                withContext(Dispatchers.Main) { AppState.showNew(mesh, p) }
+                withContext(Dispatchers.Main) { if (edit) AppState.editOnOpen = true; AppState.showNew(mesh, p) }
             } catch (e: Throwable) {
                 CrashLog.error("create $kindName", e)
                 error = (e.message ?: e.javaClass.simpleName).take(200)

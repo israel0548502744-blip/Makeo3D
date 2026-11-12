@@ -36,6 +36,8 @@ sealed interface Screen {
     /** One group of products ([AppState.category]). */
     data object Category : Screen
     data object More : Screen
+    /** Drawing and sculpting from a plain shape. */
+    data object Sculpt : Screen
 }
 
 data class JobState(
@@ -193,6 +195,8 @@ object AppState {
     var update by mutableStateOf<Updater.Update?>(null)
     /** Shown once on the home screen, e.g. "NPU crashed, switched to GPU". */
     var notice by mutableStateOf<String?>(null)
+    /** The next model shown opens straight in touch editing (a shape made to be sculpted). */
+    var editOnOpen = false
 
     private fun prefs() = app.getSharedPreferences("state", Context.MODE_PRIVATE)
 

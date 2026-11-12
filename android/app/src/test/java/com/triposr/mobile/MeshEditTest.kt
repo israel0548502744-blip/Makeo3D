@@ -89,6 +89,56 @@ class MeshEditTest {
         assertEquals(src.triangleCount * 3, e.indices.size)
     }
 
+    @Test fun automaticRepairClosesHolesDropsCrumbsAndSettlesSpikes() {
+        val b = ball()
+        val p = b.positions.copyOf()
+        // A spike: one vertex on the side stands far out.
+        val spike = (0 until b.vertexCount).first { kotlin.math.abs(p[it * 3 + 1]) < 0.05f && p[it * 3 + 2] < -0.9f }
+        p[spike * 3] *= 1.6f; p[spike * 3 + 1] *= 1.6f; p[spike * 3 + 2] *= 1.6f
+        // A hole: the cap above z = 0.85 was never there.
+        val kept = ArrayList<Int>()
+        for (t in 0 until b.triangleCount) {
+            val tri = (0..2).map { b.indices[t * 3 + it] }
+            if (tri.any { p[it * 3 + 2] <= 0.85f }) kept.addAll(tri)
+        }
+        // A crumb floating beside it.
+        val n0 = b.vertexCount
+        val crumb = floatArrayOf(2f, 0.1f, 0f, 1.9f, -0.1f, 0f, 2.1f, -0.1f, 0f, 2f, 0f, 0.1f)
+        kept.addAll(listOf(n0, n0 + 1, n0 + 3, n0, n0 + 3, n0 + 2, n0, n0 + 2, n0 + 1, n0 + 1, n0 + 2, n0 + 3))
+        val pos = p + crumb
+        val tri = kept.toIntArray()
+        val e = MeshEditor(Mesh(pos, MeshTools.normals(pos, tri), FloatArray(pos.size) { 0.5f }, tri))
+        val (pieces, holes, spikes) = e.autoFix()
+        assertEquals("the crumb went", 1, pieces)
+        assertEquals("the hole was closed", 1, holes)
+        assertTrue("the spike was found", spikes >= 1)
+        val m = e.result()
+        val edges = HashSet<Long>()
+        for (t in 0 until m.triangleCount) for (k in 0..2)
+            edges.add((m.indices[t * 3 + k].toLong() shl 32) or m.indices[t * 3 + (k + 1) % 3].toLong())
+        assertTrue("closed after the repair", edges.all { ((it and 0xFFFFFFFFL) shl 32) or (it ushr 32) in edges })
+        val r = kotlin.math.sqrt(e.positions[spike * 3].let { it * it } + e.positions[spike * 3 + 1].let { it * it } + e.positions[spike * 3 + 2].let { it * it })
+        assertTrue("the spike sits back near the surface: $r", r < 1.15f)
+        assertTrue("one undo takes the whole repair back", e.undo())
+        assertEquals(tri.size, e.indices.size)
+        val again = MeshEditor(m).autoFix()
+        assertEquals("a repaired model needs nothing more", Triple(0, 0, 0), again.copy(third = 0))
+    }
+
+    @Test fun pullingMovesThePartAndItsSurroundingsLess() {
+        val src = ball()
+        val e = MeshEditor(src)
+        val top = (0 until src.vertexCount).filter { src.positions[it * 3 + 1] > 0.8f }.toIntArray()
+        val w = FloatArray(top.size) { i -> if (src.positions[top[i] * 3 + 1] > 0.99f) 1f else 0.5f }
+        e.grab(MeshEditor.Pick(top, w, 0.3f)); e.drag(0f, 0.5f, 0f); e.endStroke()
+        val tip = top.first { src.positions[it * 3 + 1] > 0.99f }
+        val side = top.first { src.positions[it * 3 + 1] < 0.9f }
+        assertEquals("the middle follows the finger", 1.5f, e.positions[tip * 3 + 1], 1e-4f)
+        assertEquals("the edge of the brush follows half as far", src.positions[side * 3 + 1] + 0.25f, e.positions[side * 3 + 1], 1e-4f)
+        assertTrue(e.undo())
+        assertEquals(1f, e.positions[tip * 3 + 1], 1e-4f)
+    }
+
     @Test fun loosePiecesGoAndTheBiggestStays() {
         val e = MeshEditor(scene())
         assertEquals(1, e.removeLoose())

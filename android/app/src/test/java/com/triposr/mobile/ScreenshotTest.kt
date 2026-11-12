@@ -183,6 +183,8 @@ class ScreenshotTest {
 
     @Test fun models() = shot("14_models", Screen.Models) { com.triposr.mobile.ui.ModelsScreen() }
 
+    @Test fun sculpt() = shot("31_sculpt") { com.triposr.mobile.ui.SculptScreen() }
+
     @Test fun tour() {
         com.triposr.mobile.ui.Tour.step = 2
         AppState.navigateRoot(Screen.Home)  // the tour lights a part up only on its own screen

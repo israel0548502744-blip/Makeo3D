@@ -159,6 +159,7 @@ class MainActivity : ComponentActivity() {
                         Screen.Make -> com.triposr.mobile.ui.MakeScreen()
                         Screen.Category -> com.triposr.mobile.ui.CategoryScreen()
                         Screen.More -> com.triposr.mobile.ui.MoreScreen()
+                        Screen.Sculpt -> com.triposr.mobile.ui.SculptScreen()
                     }
                 }
                 if (screen.isRoot) BottomNav(screen)

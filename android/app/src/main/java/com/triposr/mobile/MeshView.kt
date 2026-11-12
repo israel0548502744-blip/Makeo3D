@@ -35,7 +35,8 @@ class MeshView(context: Context) : GLSurfaceView(context) {
     private var lastMesh: Mesh? = null
 
     // ---- touch-up (see MeshEditor): one finger rubs, two fingers move and zoom
-    enum class Tool { ROTATE, ERASE, SMOOTH, RAISE, SINK, FLATTEN }
+    /** STRETCH is a panel of sliders: the finger turns the model meanwhile, like ROTATE. */
+    enum class Tool { ROTATE, ERASE, SMOOTH, RAISE, SINK, FLATTEN, PULL, STRETCH }
     var editor: MeshEditor? = null; private set
     var tool = Tool.ROTATE
     /** Brush radius in view pixels. */
@@ -91,7 +92,7 @@ class MeshView(context: Context) : GLSurfaceView(context) {
         if (queued.compareAndSet(false, true)) queueEvent {
             queued.set(false)
             val p = positionsDirty; positionsDirty = false
-            renderer.update(if (p) e.positions else null, null, e.indices)
+            renderer.update(if (p) e.positions else null, if (p) e.liveNormals() else null, e.indices)
         }
         requestRender()
     }
@@ -105,26 +106,54 @@ class MeshView(context: Context) : GLSurfaceView(context) {
             Tool.RAISE -> e.push(p, 0.08f * strength)
             Tool.SINK -> e.push(p, -0.08f * strength)
             Tool.FLATTEN -> e.flatten(p, strength)
-            Tool.ROTATE -> {}
+            Tool.ROTATE, Tool.STRETCH, Tool.PULL -> {}
         }
         stroked = true
         onBrush?.invoke(x, y, true)
         push(e, tool != Tool.ERASE)
     }
 
+    // A pull: model units per screen pixel where the part was taken, and the last finger place.
+    private var pullUnit = 0f
+    private var pullX = 0f
+    private var pullY = 0f
+    private val axes = FloatArray(6)
+
+    /** Takes hold of the part under the finger. */
+    private fun take(e: MeshEditor, x: Float, y: Float) {
+        renderer.cameraInto(camera)
+        val p = e.pick(camera, width, height, x, y, brushPx, through)
+        if (p.verts.isEmpty()) return
+        e.grab(p)
+        pullUnit = p.radius / brushPx; pullX = x; pullY = y
+    }
+
+    /** Moves the held part with the finger, across the screen as it is seen now. */
+    private fun follow(e: MeshEditor, x: Float, y: Float) {
+        if (pullUnit == 0f) return
+        renderer.axesInto(axes)
+        val dx = (x - pullX) * pullUnit; val dy = -(y - pullY) * pullUnit
+        e.drag(axes[0] * dx + axes[3] * dy, axes[1] * dx + axes[4] * dy, axes[2] * dx + axes[5] * dy)
+        pullX = x; pullY = y
+        stroked = true
+        onBrush?.invoke(x, y, true)
+        push(e, true)
+    }
+
     /** Handles a brush touch. False = not a brush gesture (two fingers, or beside the model): the camera has it. */
     private fun brushTouch(e: MeshEditor, ev: MotionEvent): Boolean {
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                multi = false; stroked = false
+                multi = false; stroked = false; pullUnit = 0f
                 renderer.cameraInto(camera)
                 beside = e.pick(camera, width, height, ev.x, ev.y, minOf(brushPx, 28f), true).verts.isEmpty()
+                if (!beside && tool == Tool.PULL) take(e, ev.x, ev.y)
             }
             MotionEvent.ACTION_POINTER_DOWN -> { multi = true; onBrush?.invoke(0f, 0f, false) }
-            MotionEvent.ACTION_MOVE -> if (!multi && !beside) dab(e, ev.x, ev.y)
+            MotionEvent.ACTION_MOVE -> if (!multi && !beside) { if (tool == Tool.PULL) follow(e, ev.x, ev.y) else dab(e, ev.x, ev.y) }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 // A tap without a move is one dab; a touch that became two fingers is none.
-                if (!multi && !beside && !stroked && ev.actionMasked == MotionEvent.ACTION_UP) dab(e, ev.x, ev.y)
+                if (!multi && !beside && !stroked && tool != Tool.PULL && ev.actionMasked == MotionEvent.ACTION_UP) dab(e, ev.x, ev.y)
                 e.endStroke()
                 onBrush?.invoke(0f, 0f, false)
                 if (stroked) { refreshEdit(); onStroke?.invoke() }
@@ -159,7 +188,7 @@ class MeshView(context: Context) : GLSurfaceView(context) {
     override fun onTouchEvent(e: MotionEvent): Boolean {
         scaleDetector.onTouchEvent(e)
         val ed = editor
-        if (ed != null && tool != Tool.ROTATE && brushTouch(ed, e)) {
+        if (ed != null && tool != Tool.ROTATE && tool != Tool.STRETCH && brushTouch(ed, e)) {
             parent?.requestDisallowInterceptTouchEvent(true)
             return true
         }
@@ -239,6 +268,17 @@ internal class MeshRenderer : GLSurfaceView.Renderer {
             indexCount = indices.size
             lineCount = 0
         }
+    }
+
+    /** The screen's right (0..2) and up (3..5) directions in model space, as the model is turned now. */
+    fun axesInto(out: FloatArray) {
+        val m = FloatArray(16)
+        Matrix.setIdentityM(m, 0)
+        Matrix.rotateM(m, 0, pitch, 1f, 0f, 0f)
+        Matrix.rotateM(m, 0, yaw, 0f, 1f, 0f)
+        // The model turns by m: a screen direction d is m's transpose times d (column-major rows).
+        out[0] = m[0]; out[1] = m[4]; out[2] = m[8]
+        out[3] = m[1]; out[4] = m[5]; out[5] = m[9]
     }
 
     /** The camera matrix as drawn, for finding what is under a finger (any thread). */
