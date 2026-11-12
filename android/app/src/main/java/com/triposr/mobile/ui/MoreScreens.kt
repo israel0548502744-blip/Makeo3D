@@ -137,7 +137,9 @@ fun ResultScreen() {
         LaunchedEffect(Unit) { AppState.back() }
         return
     }
-    var colors by remember(project.id) { mutableStateOf(true) }
+    // TripoSG's colors are a guess from one picture (the back and sides are filled in), so its
+    // models open plain; the "color" button shows the guess. Every other model opens in color.
+    var colors by remember(project.id) { mutableStateOf(project.group != "sg") }
     var wire by remember { mutableStateOf(false) }
     var light by remember { mutableStateOf(true) }
     var grid by remember { mutableStateOf(true) }
