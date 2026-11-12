@@ -401,12 +401,12 @@ class MeshEditor(private val src: Mesh) {
     fun scale(sx: Float, sy: Float, sz: Float) {
         endStroke()
         val lo = FloatArray(3) { Float.MAX_VALUE }; val hi = FloatArray(3) { -Float.MAX_VALUE }
-        val live = IntList()
+        val used = IntList()
         for (v in 0 until nv) if (degree[v] > 0) {
-            live.add(v)
+            used.add(v)
             for (c in 0..2) { lo[c] = minOf(lo[c], positions[v * 3 + c]); hi[c] = maxOf(hi[c], positions[v * 3 + c]) }
         }
-        val all = live.toArray()
+        val all = used.toArray()
         if (all.isEmpty()) return
         remember(all)
         val k = floatArrayOf(sx, sy, sz)
@@ -414,7 +414,7 @@ class MeshEditor(private val src: Mesh) {
             val mid = (lo[c] + hi[c]) / 2
             positions[v * 3 + c] = mid + (positions[v * 3 + c] - mid) * k[c]
         }
-        live = null
+        this.live = null
         endStroke()
     }
 
